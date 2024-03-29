@@ -3,6 +3,7 @@ import pandas as pd
 import csv
 import numpy as np
 import torch
+import torchvision.transforms.functional
 from skimage import io
 import os
 import math
@@ -191,11 +192,12 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
         reader = csv.reader(file)
         next(reader)
         text_to_int = TextToInt(char_to_int_map)
-        fill_array = FillArray(length=21)
+        fill_array = FillArray(length=text_label_max_length)
         max_height = 0
+        max_width = 0
         for row in reader:
             if len(row[1]) > text_label_max_length:
-                print('too long')
+                #print('too long')
                 continue
             if not all_chars_in_set(row[1], char_set):
                 continue
@@ -204,22 +206,25 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
             lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
 
             img = read_image(row[0])
-
+            img = torchvision.transforms.functional.invert(img)
             image = image_transform(img)
 
             # print(image)
             if image is None or lbl_tensor is None:
                 print('err')
                 continue
-            print('img_shp:', img.shape[1])
+            #print('img_shp:', img.shape[1])
             if image.shape[1]> max_height:
                 max_height= image.shape[1]
+            if image.shape[2] > max_width:
+                max_width = image.shape[2]
+
             images = torch.cat((images, image), 0)
 
             labels = torch.cat((labels, lbl_tensor), 0)
             counter = counter + 1
             if counter == num_of_rows:
-                labels = labels.reshape([num_of_rows, 21])
+                labels = labels.reshape([num_of_rows, text_label_max_length])
                 print("len(labels):", str(len(labels)))
                 print("len(images):", str(len(images)))
                 #print('lblshp:', labels.shape)
@@ -237,6 +242,7 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=True)
     print(chars)
     print('max_height:', max_height)
+    print('max_width:', max_width)
     return train_loader, test_loader
 
 

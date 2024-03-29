@@ -30,7 +30,7 @@ class FillArray:
         #print('length:', self.length)
         for i in range(self.length - len(array)):
             #print('appending')
-            array.append(69)
+            array.append(16)
 
         #print('arrlength: ',len(array) )
         return array

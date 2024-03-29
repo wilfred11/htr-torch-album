@@ -5,36 +5,37 @@ from torch.autograd import Variable
 
 resnet_url = 'https://download.pytorch.org/models/resnet34-333f7ec4.pth'
 
+
 class CRNN(nn.Module):
 
     def __init__(self):
         super(CRNN, self).__init__()
 
-        self.num_classes = 26 + 1
-        self.image_H = 56
+        self.num_classes = 16 + 1
+        self.image_H = 28
 
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3,3))
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
         self.in1 = nn.InstanceNorm2d(32)
 
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3,3))
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
         self.in2 = nn.InstanceNorm2d(32)
 
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3,3), stride=2)
+        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2)
         self.in3 = nn.InstanceNorm2d(32)
 
-        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3,3))
+        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
         self.in4 = nn.InstanceNorm2d(64)
 
-        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3,3))
+        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 3))
         self.in5 = nn.InstanceNorm2d(64)
 
-        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3,3), stride=2)
+        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
         self.in6 = nn.InstanceNorm2d(64)
         # http://layer-calc.com/
         # c= 64 h=10 w=43
 
-        self.postconv_height = 10
-        self.postconv_width = 28
+        self.postconv_height = 3
+        self.postconv_width = 31
 
         self.gru_input_size = self.postconv_height * 64
         self.gru_hidden_size = 128
@@ -42,7 +43,8 @@ class CRNN(nn.Module):
         self.gru_h = None
         self.gru_cell = None
 
-        self.gru = nn.GRU(self.gru_input_size, self.gru_hidden_size, self.gru_num_layers, batch_first = True, bidirectional = True)
+        self.gru = nn.GRU(self.gru_input_size, self.gru_hidden_size, self.gru_num_layers, batch_first=True,
+                          bidirectional=True)
 
         self.fc = nn.Linear(self.gru_hidden_size * 2, self.num_classes)
 
@@ -85,6 +87,3 @@ class CRNN(nn.Module):
     def reset_hidden(self, batch_size):
         h = torch.zeros(self.gru_num_layers * 2, batch_size, self.gru_hidden_size)
         self.gru_h = Variable(h)
-
-
-    

@@ -1,7 +1,8 @@
 import os
 import csv
 import torch.nn as nn
-from torchvision.transforms import v2, InterpolationMode
+import torchvision
+from torchvision.transforms import v2
 from files.config import ModelConfigs
 from files.dataset import ResizeWithPad, dataset_load, dataloader_show
 import torch
@@ -16,7 +17,7 @@ def read_maps():
     char_to_int_map = {}
     int_to_char_map = {}
     char_set = set()
-    with open(external_data_dir() + 'char_map_lim.csv', 'r') as file:
+    with open(external_data_dir() + 'char_map_15.csv', 'r') as file:
         csv_reader = csv.reader(file, delimiter=';', quotechar='\'', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
         for row in csv_reader:
             char_to_int_map[row[0]] = row[1]
@@ -77,6 +78,10 @@ def read_words_generate_csv():
 configs = read_words_generate_csv()
 
 char_to_int_map, int_to_char_map, char_set = read_maps()
+char_to_int_map['_'] = '15'
+int_to_char_map['15'] = '_'
+char_to_int_map[''] = '16'
+int_to_char_map['16'] = ''
 '''
 char_to_int_map['\''] = '68'
 int_to_char_map['68'] = '\''
@@ -109,8 +114,8 @@ print(int_to_char_map)
 
 
 image_transform = v2.Compose(
-    [ResizeWithPad(h=56, w=188),
-     v2.Grayscale(),
+    [ResizeWithPad(h=28, w=140),
+     v2.Grayscale()
     ])
      #v2.ToImage()])
 
@@ -140,12 +145,12 @@ trl, tl = dataset_load(image_transform, char_to_int_map, 4000, text_label_max_le
 
 dataloader_show(trl)
 
-BLANK_LABEL = 26
+BLANK_LABEL = 15
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 crnn = CRNN().to(device)
 criterion = nn.CTCLoss(blank=BLANK_LABEL, reduction='mean', zero_infinity=True)
-optimizer = torch.optim.Adam(crnn.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
 
 #train(trl, crnn, optimizer, criterion)
 
