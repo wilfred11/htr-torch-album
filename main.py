@@ -1,5 +1,4 @@
 import os
-
 import torch.nn as nn
 from torchvision.transforms import v2
 from torchinfo import summary
@@ -24,7 +23,7 @@ image_transform = v2.Compose(
 do = 3
 text_label_max_length = 6
 
-os.environ["PATH"] += os.pathsep + 'D:/Program Files/Graphviz/bin/'
+#os.environ["PATH"] += os.pathsep + 'D:/Program Files/Graphviz/bin/'
 
 if do == 1:
     with keep.running() as k:
@@ -94,6 +93,7 @@ if do == 2:
     visualize_featuremap(crnn, trl)
 
 if do == 3:
+    print('visualize model')
     char_to_int_map, int_to_char_map, char_set = read_maps()
     crnn = CRNN().to(device)
     crnn.load_state_dict(torch.load(generated_data_dir() + 'trained_reader'))

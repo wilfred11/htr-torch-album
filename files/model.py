@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from torchview import draw_graph
 from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.anchor_utils import DefaultBoxGenerator, AnchorGenerator
-
+import torchlens as tl
 
 class CRNN(nn.Module):
 
@@ -213,10 +213,17 @@ def visualize_model(loader, model):
     # tag_scores = model(x_train)
     # print('tag_scores',tag_scores)
     # make_dot(yhat, params=dict(list(model.named_parameters()))).render("rnn_torchviz", format="png")
-    model_graph = draw_graph(model, input_size=(1, 1, 28, 140), expand_nested=True)
-    model_graph.visual_graph
-    model_graph.resize_graph(scale=5.0)  # scale as per the view model_graph.visual_graph.render(format='svg')
-    model_graph.visual_graph.render(format='png')
+    #model_graph = draw_graph(model, input_size=(1, 1, 28, 140), expand_nested=True)
+    #model_graph.visual_graph
+    #model_graph.resize_graph(scale=5.0)  # scale as per the view model_graph.visual_graph.render(format='svg')
+    #model_graph.visual_graph.render(format='png')
+    for batch_id, (x_test, y_test) in enumerate(loader):
+        for j in range(len(x_test)):
+            img = x_test[j].unsqueeze(0)
+            img = img.unsqueeze(1)
+            model_history = tl.log_forward_pass(model, img, layers_to_save='all', vis_opt='unrolled')
+            print(model_history)
+
     os.system('pause')
 
 
