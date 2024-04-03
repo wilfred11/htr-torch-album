@@ -188,7 +188,6 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
     chars = set()
 
     with open(generated_data_dir() + 'file_names-labels.csv', newline='') as file:
-
         reader = csv.reader(file)
         next(reader)
         text_to_int = TextToInt(char_to_int_map)
@@ -206,18 +205,14 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
             lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
 
             img = read_image(row[0])
-            #if img.shape[2] > max_width:
-            #    plt.imshow(img, cmap='gray')
-            #    plt.show()
 
             img = torchvision.transforms.functional.invert(img)
             image = image_transform(img)
 
-            # print(image)
             if image is None or lbl_tensor is None:
                 print('err')
                 continue
-            #print('img_shp:', img.shape[1])
+
             if image.shape[1]> max_height:
                 max_height= image.shape[1]
             if image.shape[2] > max_width:
@@ -231,8 +226,6 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
                 labels = labels.reshape([num_of_rows, text_label_max_length])
                 print("len(labels):", str(len(labels)))
                 print("len(images):", str(len(images)))
-                #print('lblshp:', labels.shape)
-                #print('imgshp:', images.shape)
                 break
 
     print("slabels_shp:", labels.shape)
