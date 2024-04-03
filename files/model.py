@@ -199,7 +199,7 @@ class BBox(nn.Module):
         return box_t
 
 
-def visualize_model(loader, model, transform):
+def visualize_model(loader, model):
     # batch = next(iter(loader))
     # print('btchshp:', batch[0].shape)
     # t_im= transform(batch[0])
@@ -243,24 +243,6 @@ def fdl_layer_plot(image, title, figsize=(16, 8)):
 
 
 def visualize_featuremap(crnn, loader):
-    print('vis fm')
-    # batch = next(iter(loader))
-    # conv_output = crnn.conv1(batch[0])
-    # print('conv_:',conv_output)
-    for batch_id, (x_test, y_test) in enumerate(loader):
-        for j in range(len(x_test)):
-            plt.imshow(x_test[j], cmap='gray')
-            plt.show()
-            print('im_shp:', x_test[j].shape)
-            img = x_test[j].unsqueeze(0)
-            img = img.unsqueeze(1)
-            conv1_output = crnn.conv1(img)
-            conv_output_image = conv1_output.permute(0, 2, 3, 1).detach().numpy()
-            conv_max_layer_plot(nrows=4, ncols=8, title='First Conv2D', image=conv_output_image)
-            os.system('pause')
-
-
-def visualize_featuremap1(crnn, loader):
     for batch_id, (x_test, y_test) in enumerate(loader):
         for j in range(len(x_test)):
             plt.imshow(x_test[j], cmap='gray')
