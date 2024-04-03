@@ -2,7 +2,7 @@ import torch
 from itertools import groupby
 
 
-def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL):
+def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL, num_chars):
     correct = 0
     total = 0
 
@@ -25,7 +25,8 @@ def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL):
 
         input_lengths = torch.IntTensor(batch_size).fill_(crnn.postconv_width)
         target_lengths = torch.IntTensor([len(t) for t in y_train])
-
+        print('input_lengths:', target_lengths)
+        print('target_lengths:', target_lengths)
         loss = criterion(y_pred, y_train, input_lengths, target_lengths)
         total_loss += loss.detach().numpy()
 
@@ -38,12 +39,19 @@ def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL):
             raw_prediction = list(max_index[:, i].numpy())
 
             prediction = torch.IntTensor([c for c, _ in groupby(raw_prediction) if c != BLANK_LABEL])
+            sz = len(prediction)
+            for x in range(num_chars-sz):
+                prediction = torch.cat((prediction, torch.IntTensor([16])),0)
+
+            print('prediction:', prediction)
+            print('y_train:', y_train[i])
 
             if len(prediction) == len(y_train[i]) and torch.all(prediction.eq(y_train[i])):
                 correct += 1
             total += 1
 
         num_batches += 1
+
 
     ratio = correct / total
     print('TRAIN correct: ', correct, '/', total, ' P:', ratio)

@@ -206,6 +206,10 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
             lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
 
             img = read_image(row[0])
+            #if img.shape[2] > max_width:
+            #    plt.imshow(img, cmap='gray')
+            #    plt.show()
+
             img = torchvision.transforms.functional.invert(img)
             image = image_transform(img)
 
@@ -238,7 +242,7 @@ def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_l
     train_set, test_set = torch.utils.data.random_split(seq_dataset,
                                                         [int(len(seq_dataset) * 0.8), int(len(seq_dataset) * 0.2)])
 
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=40, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=True)
     print(chars)
     print('max_height:', max_height)
