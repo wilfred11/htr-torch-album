@@ -91,6 +91,32 @@ class CRNN(nn.Module):
         h = torch.zeros(self.gru_num_layers * 2, batch_size, self.gru_hidden_size)
         self.gru_h = Variable(h)
 
+    def simple_forward(self, x):
+        out = self.conv1(x)
+        out = F.leaky_relu(out)
+        out = self.in1(out)
+
+        out = self.conv2(out)
+        out = F.leaky_relu(out)
+        out = self.in2(out)
+
+        out = self.conv3(out)
+        out = F.leaky_relu(out)
+        out = self.in3(out)
+
+        out = self.conv4(out)
+        out = F.leaky_relu(out)
+        out = self.in4(out)
+
+        out = self.conv5(out)
+        out = F.leaky_relu(out)
+        out = self.in5(out)
+
+        out = self.conv6(out)
+        out = F.leaky_relu(out)
+        out = self.in6(out)
+
+        return out.permute(0, 2, 3, 1).detach().numpy()
 
 class BBox(nn.Module):
     def __init__(self):
@@ -233,7 +259,17 @@ def visualize_featuremap(crnn, loader):
             conv_max_layer_plot(nrows=4, ncols=8, title='First Conv2D', image=conv_output_image)
             os.system('pause')
 
-            in1_output = crnn.in1(conv1_output)
 
-            self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
-
+def visualize_featuremap1(crnn, loader):
+    for batch_id, (x_test, y_test) in enumerate(loader):
+        for j in range(len(x_test)):
+            plt.imshow(x_test[j], cmap='gray')
+            plt.show()
+            print('im_shp:', x_test[j].shape)
+            img = x_test[j].unsqueeze(0)
+            img = img.unsqueeze(1)
+            out = crnn.simple_forward(img)
+            #conv1_output = crnn.conv1(img)
+            #conv_output_image = conv1_output.permute(0, 2, 3, 1).detach().numpy()
+            conv_max_layer_plot(nrows=4, ncols=8, title='First Conv2D', image=out)
+            os.system('pause')
