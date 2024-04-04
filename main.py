@@ -2,11 +2,13 @@ import os
 import torch.nn as nn
 from torchvision.transforms import v2
 from torchinfo import summary
-from data import read_words_generate_csv, read_words_generate_bbox_csv, read_bbox_csv_show_image
+from data import read_words_generate_csv, read_words_generate_bbox_csv, read_bbox_csv_show_image, \
+    read_lines_generate_bbox_csv
 from files.config import ModelConfigs
 from files.dataset import ResizeWithPad, dataset_load, dataloader_show
 import torch
-from files.model import CRNN, BBox, visualize_model, visualize_featuremap, visualize_featuremap
+from files.model import CRNN, visualize_model, visualize_featuremap, visualize_featuremap
+from files.model_bbox import cls_predictor, TinySSD
 from files.test_train import train
 from mystuff.functions import iam_dir, ascii_dir, generated_data_dir, external_data_dir, read_maps
 from wakepy import keep
@@ -20,7 +22,7 @@ image_transform = v2.Compose(
     [ResizeWithPad(h=28, w=140),
      v2.Grayscale()
      ])
-do = 3
+do = 4
 text_label_max_length = 6
 
 #os.environ["PATH"] += os.pathsep + 'D:/Program Files/Graphviz/bin/'
@@ -101,24 +103,27 @@ if do == 3:
     visualize_model(trl, crnn)
 
 if do == 4:
-    read_words_generate_bbox_csv()
+    #read_words_generate_bbox_csv()
+    #read_lines_generate_bbox_csv()
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    crnn = BBox().to(device)
+    sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79],
+             [0.88, 0.961]]
+    ratios = [[1, 2, 0.5]] * 5
+    num_anchors = len(sizes[0]) + len(ratios[0]) - 1
 
-    summary(crnn, input_size=[1, 1, 140, 28])
+    net = TinySSD(num_classes=1, num_anchors=num_anchors)
+    X = torch.zeros((32, 3, 827, 1170))
+    anchors, cls_preds, bbox_preds = net(X, sizes, ratios)
 
-    conv_weights = []  # List to store convolutional layer weights
-    conv_layers = []  # List to store convolutional layers
-    total_conv_layers = 0  # Counter for total convolutional layers
+    print('output anchors:', anchors.shape)
+    print('output class preds:', cls_preds.shape)
+    print('output bbox preds:', bbox_preds.shape)
 
-    for module in crnn.features.children():
-        if isinstance(module, nn.Conv2d):
-            total_conv_layers += 1
-            conv_weights.append(module.weight)
-            conv_layers.append(module)
 
-    print(f"Total convolution layers: {total_conv_layers}")
+
+
+
+
 
 if do == 5:
     image_transform = v2.Compose(

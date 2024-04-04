@@ -5,8 +5,6 @@ from torch import nn, optim
 from torch.nn import functional as F
 from torch.autograd import Variable
 from torchview import draw_graph
-from torchvision.models.detection import FasterRCNN
-from torchvision.models.detection.anchor_utils import DefaultBoxGenerator, AnchorGenerator
 import torchlens as tl
 
 class CRNN(nn.Module):
@@ -118,85 +116,6 @@ class CRNN(nn.Module):
 
         return out.permute(0, 2, 3, 1).detach().numpy()
 
-class BBox(nn.Module):
-    def __init__(self):
-        super(BBox, self).__init__()
-
-        self.num_classes = (16 + 1)
-        self.image_H = 3542
-
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
-        self.in1 = nn.InstanceNorm2d(32)
-
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
-        self.in2 = nn.InstanceNorm2d(32)
-
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2)
-        self.in3 = nn.InstanceNorm2d(32)
-
-        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
-        self.in4 = nn.InstanceNorm2d(64)
-
-        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 3))
-        self.in5 = nn.InstanceNorm2d(64)
-
-        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
-        self.in6 = nn.InstanceNorm2d(64)
-
-        self.backbone = nn.Sequential(self.conv1, self.in1, self.conv2, self.in2, self.conv3, self.in3, self.conv4,
-                                      self.in4, self.conv5, self.in5, self.conv6, self.in6)
-        # backbone.
-        # anchor_generator = DefaultBoxGenerator(
-        #    [[2], [2, 3], [2, 3], [2, 3], [2], [2]],
-        # )
-        anchor_generator = AnchorGenerator(sizes=((32, 64, 128),), aspect_ratios=((0.5, 1.0, 2.0),))
-
-        self.postconv_height = 386
-        self.postconv_width = 268
-
-        self.bb_input_size = self.postconv_width * self.postconv_height * 64
-
-        model = FasterRCNN(backbone=self.backbone, num_classes=2, out_channels=4)
-
-        self.bb_fc1 = nn.Linear(self.bb_input_size, self.bb_input_size / 2)
-        self.bb_fc2 = nn.Linear(self.bb_input_size / 2, self.bb_input_size / 4)
-        self.bb_fc3 = nn.Linear(self.bb_input_size / 4, 4)
-
-    def forward(self, x):
-        batch_size = x.shape[0]
-
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
-
-        box_t = self.box_fc1(out)
-        box_t = F.relu(box_t)
-        box_t = self.box_fc2(box_t)
-        box_t = F.relu(box_t)
-        box_t = self.box_fc3(box_t)
-        box_t = F.relu(box_t)
-        box_t = F.sigmoid(box_t)
-        return box_t
 
 
 def visualize_model(loader, model):
