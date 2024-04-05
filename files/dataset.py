@@ -13,7 +13,7 @@ from torchvision.io import read_image
 from torchvision.transforms import v2
 from torchvision.transforms.v2.functional import get_size
 from files.TextTransform import TextToInt, FillArray
-from mystuff.functions import generated_data_dir
+from mystuff.functions import generated_data_dir, iam_dir
 import torch.utils.data as data_utils
 from matplotlib import pyplot as plt
 
@@ -178,68 +178,45 @@ def all_chars_in_set(str, set):
     return True
 
 
-def dataset_load(image_transform, char_to_int_map, num_of_rows, text_label_max_length, char_set):
+def get_dataloaders(image_transform, char_to_int_map, num_of_rows, text_label_max_length, char_set):
     print('loading dataset')
     images = torch.FloatTensor()
     labels = torch.IntTensor()
     counter = 0
-    # torch.set_printoptions(threshold=100000)
-    # char_to_int_map = {}
-    chars = set()
 
     with open(generated_data_dir() + 'file_names-labels.csv', newline='') as file:
         reader = csv.reader(file)
         next(reader)
         text_to_int = TextToInt(char_to_int_map)
         fill_array = FillArray(length=text_label_max_length)
-        max_height = 0
-        max_width = 0
         for row in reader:
             if len(row[1]) > text_label_max_length:
-                #print('too long')
                 continue
             if not all_chars_in_set(row[1], char_set):
                 continue
 
-            chars = chars_to_set(row[1], chars)
             lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
-
+            print('row[0]:', row[0])
             img = read_image(row[0])
-
             img = torchvision.transforms.functional.invert(img)
             image = image_transform(img)
 
             if image is None or lbl_tensor is None:
-                print('err')
                 continue
 
-            if image.shape[1]> max_height:
-                max_height= image.shape[1]
-            if image.shape[2] > max_width:
-                max_width = image.shape[2]
-
             images = torch.cat((images, image), 0)
-
             labels = torch.cat((labels, lbl_tensor), 0)
             counter = counter + 1
             if counter == num_of_rows:
                 labels = labels.reshape([num_of_rows, text_label_max_length])
-                print("len(labels):", str(len(labels)))
-                print("len(images):", str(len(images)))
                 break
-
-    print("slabels_shp:", labels.shape)
-    print("sdata_shp:", images.shape)
-
     seq_dataset = data_utils.TensorDataset(images, labels)
     train_set, test_set = torch.utils.data.random_split(seq_dataset,
                                                         [int(len(seq_dataset) * 0.8), int(len(seq_dataset) * 0.2)])
 
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=True)
-    print(chars)
-    print('max_height:', max_height)
-    print('max_width:', max_width)
+
     return train_loader, test_loader
 
 

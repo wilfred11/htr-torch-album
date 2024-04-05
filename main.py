@@ -3,9 +3,9 @@ import torch.nn as nn
 from torchvision.transforms import v2
 from torchinfo import summary
 from data import read_words_generate_csv, read_words_generate_bbox_csv, read_bbox_csv_show_image, \
-    read_lines_generate_bbox_csv
+    read_lines_generate_bbox_csv, read_words_generate_csv1
 from files.config import ModelConfigs
-from files.dataset import ResizeWithPad, dataset_load, dataloader_show
+from files.dataset import ResizeWithPad, get_dataloaders, dataloader_show
 import torch
 from files.model import CRNN, visualize_model, visualize_featuremap, visualize_featuremap
 from files.model_bbox import cls_predictor, TinySSD
@@ -22,7 +22,7 @@ image_transform = v2.Compose(
     [ResizeWithPad(h=28, w=140),
      v2.Grayscale()
      ])
-do = 4
+do = 1
 text_label_max_length = 6
 
 #os.environ["PATH"] += os.pathsep + 'D:/Program Files/Graphviz/bin/'
@@ -30,7 +30,7 @@ text_label_max_length = 6
 if do == 1:
     with keep.running() as k:
         print('training word reader')
-        configs = read_words_generate_csv()
+        configs = read_words_generate_csv1()
 
         char_to_int_map, int_to_char_map, char_set = read_maps()
         print('char_set', char_set)
@@ -40,7 +40,7 @@ if do == 1:
         # int_to_char_map['16'] = '-'
         # text_label_max_length = 6
 
-        trl, tl = dataset_load(image_transform, char_to_int_map, 1000, text_label_max_length, char_set)
+        trl, tl = get_dataloaders(image_transform, char_to_int_map, 1000, text_label_max_length, char_set)
 
         dataloader_show(trl)
 
@@ -91,7 +91,7 @@ if do == 2:
     char_to_int_map, int_to_char_map, char_set = read_maps()
     crnn = CRNN().to(device)
     crnn.load_state_dict(torch.load(generated_data_dir() + 'trained_reader'))
-    trl, tl = dataset_load(image_transform, char_to_int_map, 5, text_label_max_length, char_set)
+    trl, tl = get_dataloaders(image_transform, char_to_int_map, 5, text_label_max_length, char_set)
     visualize_featuremap(crnn, trl)
 
 if do == 3:
@@ -99,12 +99,13 @@ if do == 3:
     char_to_int_map, int_to_char_map, char_set = read_maps()
     crnn = CRNN().to(device)
     crnn.load_state_dict(torch.load(generated_data_dir() + 'trained_reader'))
-    trl, tl = dataset_load(image_transform, char_to_int_map, 5, text_label_max_length, char_set)
+    trl, tl = get_dataloaders(image_transform, char_to_int_map, 5, text_label_max_length, char_set)
     visualize_model(trl, crnn)
 
 if do == 4:
     #read_words_generate_bbox_csv()
     #read_lines_generate_bbox_csv()
+    read_bbox_csv_show_image()
 
     sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79],
              [0.88, 0.961]]

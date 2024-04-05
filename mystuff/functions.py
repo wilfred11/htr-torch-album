@@ -13,6 +13,10 @@ def iam_dir():
     return external_data_dir() + 'iam/'
 
 
+def htr_ds_dir():
+    return external_data_dir() + 'htr-dataset/'
+
+
 def ascii_dir():
     return iam_dir() + 'ascii/'
 
