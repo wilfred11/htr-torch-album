@@ -5,12 +5,12 @@ from torchinfo import summary
 from data import read_words_generate_csv, read_words_generate_bbox_csv, read_bbox_csv_show_image, \
     read_lines_generate_bbox_csv, read_words_generate_csv1
 from files.config import ModelConfigs
-from files.dataset import ResizeWithPad, get_dataloaders, dataloader_show
+from files.dataset import ResizeWithPad, get_dataloaders, dataloader_show, CustomObjectDetectionDataset
 import torch
 from files.model import CRNN, visualize_model, visualize_featuremap, visualize_featuremap
 from files.model_bbox import cls_predictor, TinySSD
 from files.test_train import train
-from mystuff.functions import iam_dir, ascii_dir, generated_data_dir, external_data_dir, read_maps
+from mystuff.functions import iam_dir, ascii_dir, generated_data_dir, external_data_dir, read_maps, htr_ds_dir
 from wakepy import keep
 
 # Todo confusion matrix
@@ -22,7 +22,7 @@ image_transform = v2.Compose(
     [ResizeWithPad(h=28, w=140),
      v2.Grayscale()
      ])
-do = 1
+do = 4
 text_label_max_length = 6
 
 #os.environ["PATH"] += os.pathsep + 'D:/Program Files/Graphviz/bin/'
@@ -103,9 +103,8 @@ if do == 3:
     visualize_model(trl, crnn)
 
 if do == 4:
-    #read_words_generate_bbox_csv()
-    #read_lines_generate_bbox_csv()
-    read_bbox_csv_show_image()
+
+    #read_bbox_csv_show_image()
 
     sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79],
              [0.88, 0.961]]
@@ -120,11 +119,10 @@ if do == 4:
     print('output class preds:', cls_preds.shape)
     print('output bbox preds:', bbox_preds.shape)
 
-
-
-
-
-
+    annotations_file = htr_ds_dir() + 'train/' + '_annotations.csv'
+    image_folder = htr_ds_dir() + 'train/'
+    ds = CustomObjectDetectionDataset(annotations_file, image_folder)
+    print(ds[0][0])
 
 if do == 5:
     image_transform = v2.Compose(

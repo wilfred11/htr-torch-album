@@ -13,9 +13,116 @@ from torchvision.io import read_image
 from torchvision.transforms import v2
 from torchvision.transforms.v2.functional import get_size
 from files.TextTransform import TextToInt, FillArray
-from mystuff.functions import generated_data_dir, iam_dir
+from mystuff.functions import generated_data_dir, iam_dir, htr_ds_dir
 import torch.utils.data as data_utils
 from matplotlib import pyplot as plt
+
+import torch
+from torchvision import transforms
+from torchvision.datasets import CocoDetection
+from torch.utils.data import DataLoader
+from PIL import Image
+
+
+# Define a custom dataset class
+class CustomObjectDetectionDataset(Dataset):
+    def __init__(self, annotations_file, image_folder):
+        self.bboxes = torch.IntTensor()
+        self.labels = torch.IntTensor()
+        self.image = torch.FloatTensor()
+        self.annotations_file = annotations_file
+        self.image_folder = image_folder
+        self.file_names = dict()
+
+        with open(self.annotations_file, newline='') as file:
+            reader = csv.reader(file, delimiter=',')
+            next(reader)
+            current_image = ''
+            last_image = ''
+            counter = 0
+            current_file_name = ''
+            for row in reader:
+                print('r1', row[1])
+                print('r2', row[2])
+                print('r0', row[0])
+                if row[1] == '827' and row[2] == '1170':
+                    print('right size')
+                    if not row[0] == current_file_name or current_file_name == '':
+                        print('new img')
+                        self.file_names[counter] = row[0]
+                        current_file_name = row[0]
+                        counter = counter + 1
+            #print(self.file_names)
+
+        '''
+        with open(htr_ds_dir() + annotations_file,image_folder , newline='') as file:
+            reader = csv.reader(file, delimiter=',')
+            next(reader)
+            for row in reader:
+                box= torch.IntTensor(row[3], row[4], row[5], row[6])
+                self.bboxes=torch.cat((self.bboxes, box), 0)
+                label = 0
+                self.labels= torch.cat(self.labels, label)
+                image = read_image(htr_ds_dir() + 'train/'+  row[0])
+                self.images = torch.cat(self.labels, label)
+        '''
+
+    def __len__(self):
+        return len(self.file_names)
+
+    def __getitem__(self, idx):
+        #t_image = torch.FloatTensor()
+        #t_bboxes = torch.IntTensor()
+        #t_labels = torch.IntTensor()
+        file_name = self.file_names[idx]
+
+        with open(self.annotations_file, newline='') as file:
+            reader = csv.reader(file, delimiter=',')
+            next(reader)
+            current_file_name = ''
+            last_file_name = ''
+            t_bbox = torch.IntTensor()
+
+            for row in reader:
+                if file_name == row[0]:
+                    current_file_name = row[0]
+                    self.labels = torch.cat((self.labels, torch.IntTensor(0)), 0)
+                    self.bboxes = torch.cat((self.bboxes, torch.FloatTensor([int(row[4]), int(row[5]), int(row[6]), int(row[7])])), 0)
+
+                    if (not current_file_name == last_file_name or last_file_name == '') and not len(self.bboxes) == 0:
+                        current_file_name = row[0]
+                        self.image = read_image(htr_ds_dir() + 'train/' + file_name)
+                        t_bboxes = torch.IntTensor()
+
+                    last_file_name = row[0]
+        return self.image, self.bboxes, self.labels
+                #print(row)
+                #bbox = [int(row[4]), int(row[5]), int(row[6]), int(row[7])]
+                #bbox = torch.tensor(bbox, dtype=torch.int)
+                #bbox = bbox.unsqueeze(0)
+                # bbox = torchvision.ops.box_convert(bbox, in_fmt='xywh', out_fmt='xyxy')
+                #t_bboxes = torch.cat((t_bbox, bbox), 0)
+                #t_labels = torch.cat(t_labels, 0)
+                # bbox = torch.Tensor()
+                #last_image = row[0]
+
+        #selfimg_path = os.path.join(self.image_folder, self.annotations[idx]['image_id'])
+        #img = Image.open(img_path).convert("RGB")
+
+        # Get annotations
+
+        '''
+        annotations = self.annotations[idx]['annotations']
+        boxes = []
+        labels = []
+        for annot in annotations:
+            bbox = annot['bbox']
+            boxes.append([bbox[0], bbox[1], bbox[0] + bbox[2],
+                          bbox[1] + bbox[3]])  # Convert to (x_min, y_min, x_max, y_max) format
+            labels.append(annot['class'])
+        '''
+
+
 
 
 class FixedHeightResize:
