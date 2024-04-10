@@ -1,12 +1,7 @@
 import torch
-import torchvision
 from torch import nn
-from torch.nn import functional as F
 import itertools
 import math
-
-
-# from d2l import torch as d2l
 
 
 def multibox_prior(data, sizes, ratios):
@@ -45,6 +40,128 @@ def multibox_prior(data, sizes, ratios):
                            dim=1).repeat_interleave(boxes_per_pixel, dim=0)
     output = out_grid + anchor_manipulations
     return output.unsqueeze(0)
+
+
+def box_iou(boxes1, boxes2):
+    """Compute pairwise IoU across two lists of anchor or bounding boxes.
+
+    Defined in :numref:`sec_anchor`"""
+    #print('boxes1', boxes1)
+    #print('boxes1.shp', boxes1.shape)
+    #print('boxes2', boxes2)
+    #print('boxes2.shp', boxes2.shape)
+    box_area = lambda boxes: ((boxes[:, 2] - boxes[:, 0]) *
+                              (boxes[:, 3] - boxes[:, 1]))
+    # Shape of `boxes1`, `boxes2`, `areas1`, `areas2`: (no. of boxes1, 4),
+    # (no. of boxes2, 4), (no. of boxes1,), (no. of boxes2,)
+    areas1 = box_area(boxes1)
+    areas2 = box_area(boxes2)
+    # Shape of `inter_upperlefts`, `inter_lowerrights`, `inters`: (no. of
+    # boxes1, no. of boxes2, 2)
+    inter_upperlefts = torch.max(boxes1[:, None, :2], boxes2[:, :2])
+    inter_lowerrights = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
+    inters = (inter_lowerrights - inter_upperlefts).clamp(min=0)
+    # Shape of `inter_areas` and `union_areas`: (no. of boxes1, no. of boxes2)
+    inter_areas = inters[:, :, 0] * inters[:, :, 1]
+    union_areas = areas1[:, None] + areas2 - inter_areas
+    return inter_areas / union_areas
+
+
+def assign_anchor_to_bbox(ground_truth, anchors, device, iou_threshold=0.5):
+    """Assign closest ground-truth bounding boxes to anchor boxes.
+
+    Defined in :numref:`sec_anchor`"""
+    #print('device:', device)
+    #print('gt.shp:', ground_truth.shape)
+    num_anchors, num_gt_boxes = anchors.shape[0], ground_truth.shape[0]
+    # Element x_ij in the i-th row and j-th column is the IoU of the anchor
+    # box i and the ground-truth bounding box j
+    jaccard = box_iou(anchors, ground_truth)
+    # Initialize the tensor to hold the assigned ground-truth bounding box for
+    # each anchor
+    anchors_bbox_map = torch.full((num_anchors,), -1, dtype=torch.long,
+                                  device=device)
+    # Assign ground-truth bounding boxes according to the threshold
+    max_ious, indices = torch.max(jaccard, dim=1)
+    anc_i = torch.nonzero(max_ious >= 0.5).reshape(-1)
+    box_j = indices[max_ious >= 0.5]
+    anchors_bbox_map[anc_i] = box_j
+    col_discard = torch.full((num_anchors,), -1)
+    row_discard = torch.full((num_gt_boxes,), -1)
+    for _ in range(num_gt_boxes):
+        max_idx = torch.argmax(jaccard)  # Find the largest IoU
+        box_idx = (max_idx % num_gt_boxes).long()
+        anc_idx = (max_idx / num_gt_boxes).long()
+        anchors_bbox_map[anc_idx] = box_idx
+        jaccard[:, box_idx] = col_discard
+        jaccard[anc_idx, :] = row_discard
+    return anchors_bbox_map
+
+
+def offset_boxes(anchors, assigned_bb, eps=1e-6):
+    """Transform for anchor box offsets.
+
+    Defined in :numref:`subsec_labeling-anchor-boxes`"""
+    c_anc = box_corner_to_center(anchors)
+    c_assigned_bb = box_corner_to_center(assigned_bb)
+    offset_xy = 10 * (c_assigned_bb[:, :2] - c_anc[:, :2]) / c_anc[:, 2:]
+    offset_wh = 5 * torch.log(eps + c_assigned_bb[:, 2:] / c_anc[:, 2:])
+    offset = torch.cat([offset_xy, offset_wh], axis=1)
+    return offset
+
+
+def box_corner_to_center(boxes):
+    """Convert from (upper-left, lower-right) to (center, width, height).
+
+    Defined in :numref:`sec_bbox`"""
+    x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
+    cx = (x1 + x2) / 2
+    cy = (y1 + y2) / 2
+    w = x2 - x1
+    h = y2 - y1
+    boxes = torch.stack((cx, cy, w, h), axis=-1)
+    return boxes
+
+
+def multibox_target(anchors, labels):
+    """Label anchor boxes using ground-truth bounding boxes.
+
+    Defined in :numref:`subsec_labeling-anchor-boxes`"""
+    batch_size, anchors = labels.shape[0], anchors.squeeze(0)
+    batch_offset, batch_mask, batch_class_labels = [], [], []
+    device, num_anchors = anchors.device, anchors.shape[0]
+    for i in range(batch_size):
+        label = labels[i, :, :]
+        #print('anchors:', anchors)
+        #print('anchors.shp:', anchors.shape)
+        #print('labels.shp:', labels.shape)
+        #print('label[:,1:].shp:', label[:, 1:].shape)
+        anchors_bbox_map = assign_anchor_to_bbox(
+            label[:, 1:], anchors, device)
+        bbox_mask = ((anchors_bbox_map >= 0).float().unsqueeze(-1)).repeat(
+            1, 4)
+        # Initialize class labels and assigned bounding box coordinates with
+        # zeros
+        class_labels = torch.zeros(num_anchors, dtype=torch.long,
+                                   device=device)
+        assigned_bb = torch.zeros((num_anchors, 4), dtype=torch.float32,
+                                  device=device)
+        # Label classes of anchor boxes using their assigned ground-truth
+        # bounding boxes. If an anchor box is not assigned any, we label its
+        # class as background (the value remains zero)
+        indices_true = torch.nonzero(anchors_bbox_map >= 0)
+        bb_idx = anchors_bbox_map[indices_true]
+        class_labels[indices_true] = label[bb_idx, 0].long() + 1
+        assigned_bb[indices_true] = label[bb_idx, 1:]
+        # Offset transformation
+        offset = offset_boxes(anchors, assigned_bb) * bbox_mask
+        batch_offset.append(offset.reshape(-1))
+        batch_mask.append(bbox_mask.reshape(-1))
+        batch_class_labels.append(class_labels)
+    bbox_offset = torch.stack(batch_offset)
+    bbox_mask = torch.stack(batch_mask)
+    class_labels = torch.stack(batch_class_labels)
+    return (bbox_offset, bbox_mask, class_labels)
 
 
 def cls_predictor(num_inputs, num_anchors, num_classes):
@@ -142,7 +259,12 @@ def create_anchors(feature_map_sizes, steps, sizes):
 
 
 class TinySSD(nn.Module):
+
     def __init__(self, num_classes, num_anchors, **kwargs):
+        #self.sizes = [[0.2 * 256, 0.272 * 256], [0.37 * 256, 0.447 * 256], [0.54 * 256, 0.619 * 256],
+        #              [0.71 * 256, 0.79 * 256], [0.88 * 256, 0.961 * 256]]
+        self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
+        self.ratios = [[1, 2, 0.5]] * 5
         super(TinySSD, self).__init__(**kwargs)
         self.num_classes = num_classes
         idx_to_in_channels = [64, 128, 128, 128, 128]
@@ -154,12 +276,12 @@ class TinySSD(nn.Module):
             setattr(self, f'bbox_{i}', bbox_predictor(idx_to_in_channels[i],
                                                       num_anchors))
 
-    def forward(self, X, sizes, ratios):
+    def forward(self, X):
         anchors, cls_preds, bbox_preds = [None] * 5, [None] * 5, [None] * 5
         for i in range(5):
             # Here `getattr(self, 'blk_%d' % i)` accesses `self.blk_i`
             X, anchors[i], cls_preds[i], bbox_preds[i] = blk_forward(
-                X, getattr(self, f'blk_{i}'), sizes[i], ratios[i],
+                X, getattr(self, f'blk_{i}'), self.sizes[i], self.ratios[i],
                 getattr(self, f'cls_{i}'), getattr(self, f'bbox_{i}'))
         anchors = torch.cat(anchors, dim=1)
         cls_preds = concat_preds(cls_preds)

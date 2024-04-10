@@ -2,10 +2,9 @@ import torch
 from itertools import groupby
 
 
-def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL, num_chars):
+def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
     correct = 0
     total = 0
-
     total_loss = 0
     num_batches = 0
 
@@ -15,8 +14,6 @@ def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL, num_chars):
         crnn.reset_hidden(batch_size)
 
         x_train = x_train.view(x_train.shape[0], 1, x_train.shape[1], x_train.shape[2])
-        print('xtrainshp:', x_train.shape)
-        print('ytrainshp:', y_train.shape)
 
         optimizer.zero_grad()
 
@@ -25,8 +22,6 @@ def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL, num_chars):
 
         input_lengths = torch.IntTensor(batch_size).fill_(crnn.postconv_width)
         target_lengths = torch.IntTensor([len(t) for t in y_train])
-        print('input_lengths:', target_lengths)
-        print('target_lengths:', target_lengths)
         loss = criterion(y_pred, y_train, input_lengths, target_lengths)
         total_loss += loss.detach().numpy()
 
@@ -38,13 +33,13 @@ def train(train_loader, crnn, optimizer, criterion, BLANK_LABEL, num_chars):
         for i in range(batch_size):
             raw_prediction = list(max_index[:, i].numpy())
 
-            prediction = torch.IntTensor([c for c, _ in groupby(raw_prediction) if c != BLANK_LABEL])
+            prediction = torch.IntTensor([c for c, _ in groupby(raw_prediction) if c != blank_label])
             sz = len(prediction)
             for x in range(num_chars-sz):
                 prediction = torch.cat((prediction, torch.IntTensor([16])),0)
 
-            print('prediction:', prediction)
-            print('y_train:', y_train[i])
+            #print('prediction:', prediction)
+            #print('y_train:', y_train[i])
 
             if len(prediction) == len(y_train[i]) and torch.all(prediction.eq(y_train[i])):
                 correct += 1

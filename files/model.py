@@ -1,11 +1,11 @@
 import os
 import torch
 from matplotlib import pyplot as plt
-from torch import nn, optim
+from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
-from torchview import draw_graph
 import torchlens as tl
+
 
 class CRNN(nn.Module):
 
@@ -75,14 +75,18 @@ class CRNN(nn.Module):
         out = self.conv6(out)
         out = F.leaky_relu(out)
         out = self.in6(out)
-
+        #print('out.shp before perm:', out.shape)
         out = out.permute(0, 3, 2, 1)
+        #print('out.shp:', out.shape)
+        #print('out:', out)
         out = out.reshape(batch_size, -1, self.gru_input_size)
+        #print('out after resh:', out.shape)
 
         out, gru_h = self.gru(out, self.gru_h)
+        #print('gru_h.shp:',gru_h.shape)
         self.gru_h = gru_h.detach()
-        out = torch.stack([F.log_softmax(self.fc(out[i])) for i in range(out.shape[0])])
-
+        out = torch.stack([F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])])
+        #print('final out.shp:', out.shape)
         return out
 
     def reset_hidden(self, batch_size):
@@ -115,7 +119,6 @@ class CRNN(nn.Module):
         out = self.in6(out)
 
         return out.permute(0, 2, 3, 1).detach().numpy()
-
 
 
 def visualize_model(loader, model):
