@@ -9,7 +9,7 @@ from files.transform import ResizeWithPad
 import torch
 from files.model import CRNN, visualize_model, visualize_featuremap
 from files.model_bbox import TinySSD, multibox_target
-from files.test_train import train
+from files.test_train import train, test
 from files.functions import generated_data_dir, htr_ds_dir
 from wakepy import keep
 
@@ -22,6 +22,7 @@ image_transform = v2.Compose(
      ])
 do = 1
 text_label_max_length = 6
+
 
 if do == 1:
     with keep.running() as k:
@@ -39,7 +40,6 @@ if do == 1:
         dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
         BLANK_LABEL = 15
-
         crnn = CRNN().to(device)
         criterion = nn.CTCLoss(blank=BLANK_LABEL, reduction='mean', zero_infinity=True)
         optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
@@ -52,14 +52,14 @@ if do == 1:
 
         for epoch in range(MAX_EPOCHS):
             training_loss = train(trl, crnn, optimizer, criterion, BLANK_LABEL, text_label_max_length)
-            # testing_loss = test()
+            testing_loss = test(tl, crnn, optimizer, criterion, BLANK_LABEL, text_label_max_length)
 
             list_training_loss.append(training_loss)
-            # list_testing_loss.append(testing_loss)
+            list_testing_loss.append(testing_loss)
 
             if epoch == 4:
                 print('training loss', list_training_loss)
-                # print('testing loss', list_testing_loss)
+                print('testing loss', list_testing_loss)
                 break
 
         torch.save(crnn.state_dict(), generated_data_dir() + 'trained_reader')
