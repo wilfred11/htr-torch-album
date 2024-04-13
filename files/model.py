@@ -121,44 +121,139 @@ class CRNN(nn.Module):
         return out.permute(0, 2, 3, 1).detach().numpy()
 
 
+class CRNN_lstm(nn.Module):
+
+    def __init__(self):
+        super(CRNN_lstm, self).__init__()
+
+        self.num_classes = (16 + 1)
+        self.image_H = 28
+
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
+        self.in1 = nn.InstanceNorm2d(32)
+
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
+        self.in2 = nn.InstanceNorm2d(32)
+
+        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2)
+        self.in3 = nn.InstanceNorm2d(32)
+
+        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
+        self.in4 = nn.InstanceNorm2d(64)
+
+        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 3))
+        self.in5 = nn.InstanceNorm2d(64)
+
+        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
+        self.in6 = nn.InstanceNorm2d(64)
+        # http://layer-calc.com/
+        # c= 64 h=10 w=43
+
+        self.postconv_height = 3
+        self.postconv_width = 31
+
+        self.lstm_input_size = self.postconv_height * 64
+        self.lstm_hidden_size = 128
+        self.lstm_num_layers = 2
+        self.lstm_h = None
+        self.lstm_c = None
+
+        self.lstm = nn.LSTM(self.lstm_input_size, self.lstm_hidden_size, self.lstm_num_layers, batch_first=True,
+                            bidirectional=True)
+
+        self.fc = nn.Linear(self.lstm_hidden_size * 2, self.num_classes)
+
+    def forward(self, x):
+        batch_size = x.shape[0]
+
+        out = self.conv1(x)
+        out = F.leaky_relu(out)
+        out = self.in1(out)
+
+        out = self.conv2(out)
+        out = F.leaky_relu(out)
+        out = self.in2(out)
+
+        out = self.conv3(out)
+        out = F.leaky_relu(out)
+        out = self.in3(out)
+
+        out = self.conv4(out)
+        out = F.leaky_relu(out)
+        out = self.in4(out)
+
+        out = self.conv5(out)
+        out = F.leaky_relu(out)
+        out = self.in5(out)
+
+        out = self.conv6(out)
+        out = F.leaky_relu(out)
+        out = self.in6(out)
+
+        out = out.permute(0, 3, 2, 1)
+        out = out.reshape(batch_size, -1, self.lstm_input_size)
+
+        out, (lstm_h, lstm_c) = self.lstm(out, (self.lstm_h, self.lstm_c))
+        self.lstm_h = lstm_h.detach()
+        self.lstm_c = lstm_c.detach()
+        out = torch.stack([F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])])
+        return out
+
+    def reset_hidden(self, batch_size):
+        h = torch.zeros(self.lstm_num_layers * 2, batch_size, self.lstm_hidden_size)
+        c = torch.zeros(self.lstm_num_layers * 2, batch_size, self.lstm_hidden_size)
+        self.lstm_h = Variable(h)
+        self.lstm_c = Variable(c)
+
+    def simple_forward(self, x):
+        out = self.conv1(x)
+        out = F.leaky_relu(out)
+        out = self.in1(out)
+
+        out = self.conv2(out)
+        out = F.leaky_relu(out)
+        out = self.in2(out)
+
+        out = self.conv3(out)
+        out = F.leaky_relu(out)
+        out = self.in3(out)
+
+        out = self.conv4(out)
+        out = F.leaky_relu(out)
+        out = self.in4(out)
+
+        out = self.conv5(out)
+        out = F.leaky_relu(out)
+        out = self.in5(out)
+
+        out = self.conv6(out)
+        out = F.leaky_relu(out)
+        out = self.in6(out)
+
+        return out.permute(0, 2, 3, 1).detach().numpy()
+
+
 def visualize_model(loader, model):
-    # batch = next(iter(loader))
-    # print('btchshp:', batch[0].shape)
-    # t_im= transform(batch[0])
-    # print('t_imshp:', t_im)
-    # yhat = model(t_im)
-
-    # model_graph = draw_graph(model, input_data=batch[0])
-
-    # model_graph.visual_graph
-
-    # tag_scores = model(x_train)
-    # print('tag_scores',tag_scores)
-    # make_dot(yhat, params=dict(list(model.named_parameters()))).render("rnn_torchviz", format="png")
-    #model_graph = draw_graph(model, input_size=(1, 1, 28, 140), expand_nested=True)
-    #model_graph.visual_graph
-    #model_graph.resize_graph(scale=5.0)  # scale as per the view model_graph.visual_graph.render(format='svg')
-    #model_graph.visual_graph.render(format='png')
     for batch_id, (x_test, y_test) in enumerate(loader):
         for j in range(len(x_test)):
             img = x_test[j].unsqueeze(0)
             img = img.unsqueeze(1)
-            model_history = tl.log_forward_pass(model, img, layers_to_save='all', vis_opt='unrolled')
+            model_history = tl.log_forward_pass(model, img, layers_to_save='all', vis_opt='rolled')
             print(model_history)
 
     os.system('pause')
 
 
-def conv_max_layer_plot(nrows, ncols, title, image, figsize=(14, 3), color='gray'):
+def conv_layer_plot(nrows, ncols, title, image, figsize=(14, 3), color='gray'):
     fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     fig.suptitle(title)
-    fig.tight_layout()
+    #fig.tight_layout()
     for i in range(nrows * ncols):
-        image_plot = axs[i // 8, i % 8].imshow(image[0, :, :, i], cmap=color)
-        axs[i // 8, i % 8].axis('off')
-    fig.subplots_adjust(right=0.8, top=0.98, bottom=0.02, hspace=0)
-    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-    fig.colorbar(image_plot, cax=cbar_ax)
+        image_plot = axs[i // ncols, i % ncols].imshow(image[0, :, :, i], cmap=color)
+        axs[i // ncols, i % ncols].axis('off')
+    fig.subplots_adjust(right=0.8, top=0.98, bottom=0.02, hspace=0.2)
+    #cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    #fig.colorbar(image_plot, cax=cbar_ax)
     plt.show()
 
 
@@ -171,7 +266,7 @@ def fdl_layer_plot(image, title, figsize=(16, 8)):
     plt.show()
 
 
-def visualize_featuremap(crnn, loader):
+def visualize_featuremap(crnn, loader, number):
     for batch_id, (x_test, y_test) in enumerate(loader):
         for j in range(len(x_test)):
             plt.imshow(x_test[j], cmap='gray')
@@ -180,7 +275,11 @@ def visualize_featuremap(crnn, loader):
             img = x_test[j].unsqueeze(0)
             img = img.unsqueeze(1)
             out = crnn.simple_forward(img)
-            #conv1_output = crnn.conv1(img)
-            #conv_output_image = conv1_output.permute(0, 2, 3, 1).detach().numpy()
-            conv_max_layer_plot(nrows=4, ncols=8, title='First Conv2D', image=out)
-            os.system('pause')
+            print('out.shp:', out.shape)
+            conv_layer_plot(nrows=16, ncols=4, title='', image=out)
+            number -= 1
+            if number <= 0:
+                break
+
+        if number <= 0:
+            break

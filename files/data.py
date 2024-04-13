@@ -202,32 +202,20 @@ def read_bbox_csv_show_image():
     with open(htr_ds_dir() + 'train/' + '_annotations.csv', newline='') as file:
         reader = csv.reader(file)
         next(reader)
-        current_image = ''
         last_image = ''
         t_bbox = torch.IntTensor()
         for row in reader:
             current_image = row[0]
-            print('size t_bbox', len(t_bbox))
-            print('cur_im', current_image)
-            print('last_im', last_image)
             if (not current_image == last_image or last_image == '') and not len(t_bbox) == 0:
-                print('image shown')
                 image = read_image(htr_ds_dir() + 'train/' + last_image)
-                current_image = ''
-                last_image = row[0]
                 img = draw_bounding_boxes(image, t_bbox, width=5, colors=(255, 0, 0))
                 img = torchvision.transforms.ToPILImage()(img)
                 img.show()
                 os.system('pause')
                 t_bbox = torch.IntTensor()
 
-            print(row)
             bbox = [int(row[4]), int(row[5]), int(row[6]), int(row[7])]
             bbox = torch.tensor(bbox, dtype=torch.int)
             bbox = bbox.unsqueeze(0)
-            # bbox = torchvision.ops.box_convert(bbox, in_fmt='xywh', out_fmt='xyxy')
-
             t_bbox = torch.cat((t_bbox, bbox), 0)
-            bbox = torch.Tensor()
-
             last_image = row[0]

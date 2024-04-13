@@ -1,4 +1,6 @@
 import torch.nn as nn
+import pickle
+import matplotlib.pyplot as plt
 from torchvision.transforms import v2
 import torch.utils.data as data_utils
 from files.d2l import Animator, Accumulator, Timer
@@ -7,7 +9,7 @@ from files.data import read_words_generate_csv, read_bbox_csv_show_image, \
 from files.dataset import CustomObjectDetectionDataset
 from files.transform import ResizeWithPad
 import torch
-from files.model import CRNN, visualize_model, visualize_featuremap
+from files.model import CRNN, visualize_model, visualize_featuremap, CRNN_lstm
 from files.model_bbox import TinySSD, multibox_target
 from files.test_train import train, test
 from files.functions import generated_data_dir, htr_ds_dir
@@ -20,9 +22,8 @@ image_transform = v2.Compose(
     [ResizeWithPad(h=28, w=140),
      v2.Grayscale()
      ])
-do = 1
+do = 3
 text_label_max_length = 6
-
 
 if do == 1:
     with keep.running() as k:
@@ -59,7 +60,11 @@ if do == 1:
 
             if epoch == 4:
                 print('training loss', list_training_loss)
+                with open(generated_data_dir() + 'list_training_loss.pkl', 'wb') as f1:
+                    pickle.dump(list_training_loss, f1)
                 print('testing loss', list_testing_loss)
+                with open(generated_data_dir() + 'list_testing_loss.pkl', 'wb') as f2:
+                    pickle.dump(list_testing_loss, f2)
                 break
 
         torch.save(crnn.state_dict(), generated_data_dir() + 'trained_reader')
@@ -81,11 +86,11 @@ if do == 1:
 
 if do == 2:
     print('visualize featuremap')
-    char_to_int_map, int_to_char_map, char_set = read_maps()
+    char_to_int_map, _, char_set = read_maps()
     crnn = CRNN().to(device)
     crnn.load_state_dict(torch.load(generated_data_dir() + 'trained_reader'))
-    trl, tl = get_dataloaders(image_transform, char_to_int_map, 5, text_label_max_length, char_set)
-    visualize_featuremap(crnn, trl)
+    trl, _ = get_dataloaders(image_transform, char_to_int_map, 5, text_label_max_length, char_set)
+    visualize_featuremap(crnn, trl, 1)
 
 if do == 3:
     print('visualize model')
@@ -206,3 +211,18 @@ if do == 5:
             v2.Grayscale()
         ])
     read_bbox_csv_show_image()
+
+if do == 6:
+    with open(generated_data_dir() + 'list_training_loss.pkl', 'rb') as f1:
+        list_training_loss = pickle.load(f1)
+    with open(generated_data_dir() + 'list_testing_loss.pkl', 'rb') as f2:
+        list_testing_loss = pickle.load(f2)
+    epochs = range(1, len(list_training_loss)+1)
+    plt.plot(epochs, list_training_loss, 'g', label='Training loss')
+    plt.plot(epochs, list_testing_loss, 'b', label='Testing loss')
+    plt.xticks(range(1, len(list_training_loss)+1))
+    plt.title('Training and Validation loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
