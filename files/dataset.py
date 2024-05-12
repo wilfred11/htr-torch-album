@@ -31,7 +31,7 @@ class CustomObjectDetectionDataset(Dataset):
         with open(self.annotations_file, newline='') as file:
             reader = csv.reader(file, delimiter=',')
             next(reader)
-            counter = 0
+            counter = 5
             current_file_name = ''
             for row in reader:
                 if row[1] == '827' and row[2] == '1170':
@@ -51,40 +51,23 @@ class CustomObjectDetectionDataset(Dataset):
         with (open(self.annotations_file, newline='') as file):
             reader = csv.reader(file, delimiter=',')
             next(reader)
-            current_file_name = ''
-            last_file_name = ''
-            t_bbox = torch.IntTensor()
             lbl_ = []
             found = False
             for row in reader:
                 if file_name == row[0]:
                     found = True
-                    current_file_name = row[0]
-                    #self.labels = torch.cat(self.labels, torch.FloatTensor(int(0), int(row[4]), int(row[5]), int(row[6]), int(row[7])), 0)
                     lbl = torch.FloatTensor(
                         [float(0), float(row[4]), float(row[5]), float(row[6]), float(row[7])]).unsqueeze(0)
                     lbl_lst = [[float(0), float(row[4]), float(row[5]), float(row[6]), float(row[7])]]
                     lbl_.append(lbl_lst)
                 elif found and not row[0] == file_name:
-                    #print('len self_lbl:', len(self.labels))
-                    #print('new file')
-                    #t_lbl_lst = torch.FloatTensor(lbl_lst)
-                    #t_lbls = torch.FloatTensor(lbl_)
                     t_lbls = torch.from_numpy(np.array(lbl_, dtype=np.float32)).squeeze(0).squeeze(0)
-                    #print('t_lbls:', t_lbls)
                     self.labels = t_lbls
-                    print('loading image')
-
                     img = torch.FloatTensor()
                     img = read_image(htr_ds_dir() + 'train/' + file_name)
-
                     im_padded = pad_image_to_nearest_multiple(img, 256)
                     transform_norm = v2.Compose([
-                        # v2.ToTensor(),
                         v2.ToDtype(torch.float32, scale=False),
-                        # v2.Resize((1280,1024), ),
-                        #v2.Pad((size=(0, 0, 1280, 1024))
-                        # v2.Normalize((0.5, 0.5, 0.5), (1, 1, 1))
                     ])
                     img = transform_norm(im_padded)
                     self.image = img

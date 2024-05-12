@@ -22,8 +22,10 @@ image_transform = v2.Compose(
     [ResizeWithPad(h=28, w=140),
      v2.Grayscale()
      ])
-do = 3
+do = 61
 text_label_max_length = 6
+lstm = False
+torch.manual_seed(0)
 
 if do == 1:
     with keep.running() as k:
@@ -41,7 +43,12 @@ if do == 1:
         dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
         BLANK_LABEL = 15
-        crnn = CRNN().to(device)
+
+        if not lstm:
+            crnn = CRNN().to(device)
+        else:
+            crnn = CRNN_lstm().to(device)
+
         criterion = nn.CTCLoss(blank=BLANK_LABEL, reduction='mean', zero_infinity=True)
         optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
 
@@ -50,13 +57,23 @@ if do == 1:
         MAX_EPOCHS = 2500
         list_training_loss = []
         list_testing_loss = []
+        list_testing_wer =  []
+        list_testing_cer = []
 
         for epoch in range(MAX_EPOCHS):
             training_loss = train(trl, crnn, optimizer, criterion, BLANK_LABEL, text_label_max_length)
-            testing_loss = test(tl, crnn, optimizer, criterion, BLANK_LABEL, text_label_max_length)
+            testing_loss, wer, cer = test(int_to_char_map, tl, crnn, optimizer, criterion, BLANK_LABEL, text_label_max_length)
 
             list_training_loss.append(training_loss)
             list_testing_loss.append(testing_loss)
+            list_testing_wer.append(wer)
+            list_testing_cer.append(cer)
+
+            prefix = ""
+            if not lstm:
+                prefix = "crnn_"
+            else:
+                prefix = "lstm_"
 
             if epoch == 4:
                 print('training loss', list_training_loss)
@@ -65,9 +82,14 @@ if do == 1:
                 print('testing loss', list_testing_loss)
                 with open(generated_data_dir() + 'list_testing_loss.pkl', 'wb') as f2:
                     pickle.dump(list_testing_loss, f2)
+                with open(generated_data_dir() + prefix + 'list_testing_wer.pkl', 'wb') as f3:
+                    pickle.dump(list_testing_wer, f3)
+                with open(generated_data_dir() + prefix + 'list_testing_cer.pkl', 'wb') as f4:
+                    pickle.dump(list_testing_cer, f4)
                 break
 
         torch.save(crnn.state_dict(), generated_data_dir() + 'trained_reader')
+
 
         # https://kiran-prajapati.medium.com/hand-digit-recognition-using-recurrent-neural-network-in-pytorch-b8db24540537
         # https://medium.com/@mohini.1893/handwriting-text-recognition-236b33c5caa4
@@ -122,9 +144,8 @@ if do == 4:
         image_folder = htr_ds_dir() + 'train/'
 
         ds = CustomObjectDetectionDataset(annotations_file, image_folder, 5)
-        print('len.ds:', len(ds))
-        #indices = torch.arange(4)
-        #ds_lim = data_utils.Subset(ds, indices)
+        print('length:', len(ds))
+        print('ds size:', )
         train_loader = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=True)
 
         trainer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
@@ -205,6 +226,15 @@ if do == 4:
               f'{str(device)}')
         print(ds[0][0])
 
+if do == 45:
+    annotations_file = htr_ds_dir() + 'train/' + '_annotations.csv'
+    image_folder = htr_ds_dir() + 'train/'
+
+    ds = CustomObjectDetectionDataset(annotations_file, image_folder, 5)
+    train_loader = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=True)
+
+
+
 if do == 5:
     image_transform = v2.Compose(
         [
@@ -217,6 +247,7 @@ if do == 6:
         list_training_loss = pickle.load(f1)
     with open(generated_data_dir() + 'list_testing_loss.pkl', 'rb') as f2:
         list_testing_loss = pickle.load(f2)
+
     epochs = range(1, len(list_training_loss)+1)
     plt.plot(epochs, list_training_loss, 'g', label='Training loss')
     plt.plot(epochs, list_testing_loss, 'b', label='Testing loss')
@@ -226,3 +257,33 @@ if do == 6:
     plt.ylabel('Loss')
     plt.legend()
     plt.show()
+
+if do == 61:
+    prefix = ""
+    if not lstm:
+        prefix = "crnn"
+    else:
+        prefix = "lstm"
+
+    with open(generated_data_dir() + 'crnn_list_testing_wer.pkl', 'rb') as f3:
+        crnn_list_testing_wer = pickle.load(f3)
+    with open(generated_data_dir() + 'crnn_list_testing_cer.pkl', 'rb') as f4:
+        crnn_list_testing_cer = pickle.load(f4)
+    with open(generated_data_dir() + 'lstm_list_testing_wer.pkl', 'rb') as f3:
+        lstm_list_testing_wer = pickle.load(f3)
+    with open(generated_data_dir() + 'lstm_list_testing_cer.pkl', 'rb') as f4:
+        lstm_list_testing_cer = pickle.load(f4)
+    epochs = range(1, len(lstm_list_testing_wer) + 1)
+    plt.plot(epochs, crnn_list_testing_wer, 'g', label='CRNN GRU testing wer',  color='black')
+    plt.plot(epochs, crnn_list_testing_cer, 'g', label='CRNN GRU testing cer', color = 'blue')
+    plt.plot(epochs, lstm_list_testing_wer, 'g', label='CRNN LSTM testing wer',  color='red')
+    plt.plot(epochs, lstm_list_testing_cer, 'g', label='CRNN LSTM testing cer', color = 'orange')
+    plt.xticks(range(1, len(lstm_list_testing_wer) + 1))
+    plt.title('Testing wer/cer')
+    plt.xlabel('Epochs')
+    plt.ylabel('wer')
+    plt.legend()
+    plt.show()
+
+
+

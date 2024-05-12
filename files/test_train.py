@@ -1,6 +1,9 @@
+import jiwer
 import torch
 import torch.nn as nn
 from itertools import groupby
+
+from files.transform import IntToText, TextToInt
 
 
 def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
@@ -62,7 +65,11 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
     return total_loss / num_batches
 
 
-def test(loader, crnn, optimizer, criterion, blank_label, num_chars):
+def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_chars):
+    int_to_text = IntToText(int_to_char_map)
+    list_of_words = list()
+    list_of_hypotheses = list()
+    #text_to_int = TextToInt(char_to_int_map)
     correct = 0
     total = 0
     num_batches = 0
@@ -90,16 +97,32 @@ def test(loader, crnn, optimizer, criterion, blank_label, num_chars):
             raw_prediction = list(max_index[:, i].numpy())
 
             prediction = torch.IntTensor([c for c, _ in groupby(raw_prediction) if c != blank_label])
+            prediction_as_list_of_chars = int_to_text(prediction)
+            prediction_as_string = "".join([str(i) for i in prediction_as_list_of_chars])
+            print('prediction:', prediction)
+            print('prediction as list of chars:', prediction_as_list_of_chars)
+            print('prediction as string:', prediction_as_string)
+            print('y_test:', y_test[i])
+            y_test_as_list_of_chars = int_to_text(y_test[i])
+            print('y_test_as_list_of_chars:',y_test_as_list_of_chars)
+            y_test_as_string = "".join([str(i) for i in y_test_as_list_of_chars])
+            list_of_hypotheses.append(prediction_as_string)
+            list_of_words.append(y_test_as_string)
+            print('y_test_as_string:', y_test_as_string)
             sz = len(prediction)
             for x in range(num_chars - sz):
                 prediction = torch.cat((prediction, torch.IntTensor([16])), 0)
 
             if len(prediction) == len(y_test[i]) and torch.all(prediction.eq(y_test[i])):
                 correct += 1
+
             total += 1
         num_batches += 1
 
     ratio = correct / total
+    wer = (total - correct) / total
+    print('wer:', wer)
     print('TEST correct: ', correct, '/', total, ' P:', ratio)
-
-    return total_loss / num_batches
+    cer = jiwer.cer(list_of_words, list_of_hypotheses)
+    print('cer:', cer)
+    return total_loss / num_batches , wer, cer
