@@ -1,11 +1,17 @@
 import csv
+import sys
+
 import numpy as np
+import torchvision
+from torch import IntTensor
 from torch.nn import functional as F1
 from torch.utils.data import Dataset
 from torchvision.io import read_image
 from torchvision.transforms import v2
-from files.functions import htr_ds_dir
+from files.functions import htr_ds_dir, generated_data_dir
 import torch
+
+from files.transform import TextToInt, FillArray, IntToText
 
 
 def pad_image_to_nearest_multiple(image, multiple=256):
@@ -75,3 +81,49 @@ class CustomObjectDetectionDataset(Dataset):
         return self.image, self.labels
 
 
+def all_chars_in_set(str, set):
+    for ch in str:
+        if ch not in set:
+            return False
+    return True
+
+
+class HTRDataset(Dataset):
+    def __init__(self, file_name, text_label_max_length, char_to_int_map, int_to_char_map, char_set, image_transform,
+                 num_of_rows):
+        self.labels = torch.IntTensor()
+        self.images = torch.FloatTensor()
+        counter = 0
+        with open(generated_data_dir() + file_name, newline='') as file:
+            reader = csv.reader(file)
+            next(reader)
+            text_to_int = TextToInt(char_to_int_map)
+            fill_array = FillArray(length=text_label_max_length)
+            for row in reader:
+                if len(row[1]) > text_label_max_length:
+                    continue
+                if not all_chars_in_set(row[1], char_set):
+                    continue
+
+                lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
+                img = read_image(row[0])
+                img = torchvision.transforms.functional.invert(img)
+                image = image_transform(img)
+
+                if image is None or lbl_tensor is None:
+                    continue
+
+                self.images = torch.cat((self.images, image), 0)
+                self.labels = torch.cat((self.labels, lbl_tensor), 0)
+                counter = counter + 1
+                if counter == num_of_rows:
+                    self.labels = self.labels.reshape([num_of_rows, text_label_max_length])
+                    break
+        print('size images:',sys.getsizeof(self.images))
+
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        return self.images[idx], self.labels[idx]

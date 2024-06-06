@@ -32,6 +32,23 @@ class IntToText:
             char_sequence.append(ch)
         return char_sequence
 
+
+class IntToString:
+    def __init__(self, int_to_char_map):
+        self.int_map = int_to_char_map
+
+    def __call__(self, integer_tensor):
+        char_sequence = []
+        for i in integer_tensor:
+            if i == ' ':
+                ch = self.int_map['']
+            else:
+                ch = self.int_map[str(i.item())]
+            char_sequence.append(ch)
+        string = "".join([str(c) for c in char_sequence])
+        return string
+
+
 class FillArray:
 
     def __init__(self, length):
