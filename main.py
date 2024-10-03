@@ -2,18 +2,31 @@ import torch.nn as nn
 import pickle
 import matplotlib.pyplot as plt
 from torchvision.transforms import v2
+from torch import nn
 import torch.utils.data as data_utils
+import albumentations as A
+import torchinfo
+
 from files.data import (
     read_words_generate_csv,
     read_bbox_csv_show_image,
     get_dataloaders,
     dataloader_show,
     read_maps,
+    Aget_dataloaders,
+    get_replay_dataset,
 )
 from files.dataset import CustomObjectDetectionDataset
-from files.transform import ResizeWithPad
+from files.transform import ResizeWithPad, AResizeWithPad
 import torch
-from files.model import CRNN, visualize_model, visualize_featuremap, CRNN_lstm, CRNN_rnn
+from files.model import (
+    CRNN,
+    visualize_model,
+    visualize_featuremap,
+    CRNN_lstm,
+    CRNN_rnn,
+    simple_model,
+)
 from files.test_train import train, test
 from files.functions import generated_data_dir, htr_ds_dir
 from wakepy import keep
@@ -22,8 +35,11 @@ from wakepy import keep
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
-do = 1
-text_label_max_length = 6
+do = 11
+# aug = 0
+aug = 1
+
+text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
 
@@ -34,6 +50,7 @@ if do == 1:
 
         char_to_int_map, int_to_char_map, char_set = read_maps()
         print("char_set", char_set)
+        print(int_to_char_map)
         # char_to_int_map['_'] = '15'
         # int_to_char_map['15'] = '_'
         int_to_char_map["16"] = ""
@@ -49,7 +66,7 @@ if do == 1:
 
         dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
-        BLANK_LABEL = 15
+        BLANK_LABEL = 17
 
         if model == 2:
             crnn = CRNN().to(device)
@@ -113,6 +130,162 @@ if do == 1:
 
         torch.save(crnn.state_dict(), generated_data_dir() + "trained_reader")
 
+if do == 110:
+    print("showing")
+
+    # train_image_transform = A.Compose([])
+
+    read_words_generate_csv()
+
+    char_to_int_map, int_to_char_map, char_set = read_maps()
+    print("char_set", char_set)
+    print("int_to_char_map", int_to_char_map)
+    # char_to_int_map['_'] = '15'
+    # int_to_char_map['15'] = '_'
+    int_to_char_map["18"] = ""
+
+    ds = get_replay_dataset(
+        text_label_max_length,
+        char_to_int_map,
+        int_to_char_map,
+        char_set,
+    )
+    ds.save_pictures_and_transform()
+    ds.get_label_length_counts()
+    """trl, tl = Aget_dataloaders(
+        test_image_transform,
+        train_image_transform,
+        char_to_int_map,
+        int_to_char_map,
+        10,
+        text_label_max_length,
+        char_set,
+        True,
+    )"""
+
+    # dataloader_show(trl, number_of_images=10, int_to_char_map=int_to_char_map)
+    # dataloader_show(tl, number_of_images=10, int_to_char_map=int_to_char_map)
+
+
+if do == 11:
+    test_image_transform = A.Compose([])
+    if aug == 1:
+        train_image_transform = A.ReplayCompose(
+            [
+                A.Rotate(limit=(-45.75, 45.75), p=1),
+                A.OneOf(
+                    [
+                        A.GaussNoise(p=1),
+                        A.Blur(p=1),
+                        A.RandomGamma(p=1),
+                        A.GridDistortion(p=1),
+                        # A.PixelDropout(p=1, drop_value=None),
+                        A.Morphological(p=1, scale=(4, 6), operation="dilation"),
+                        A.Morphological(p=1, scale=(4, 6), operation="erosion"),
+                        A.RandomBrightnessContrast(p=0.1),
+                    ],
+                    p=0.50,
+                ),
+                # A.InvertImg(p=1),
+                # AResizeWithPad(h=44, w=156),
+            ]
+        )
+
+    if aug == 0:
+        train_image_transform = A.Compose([])
+
+    with keep.running() as k:
+        print("htr training and testing")
+        read_words_generate_csv()
+
+        char_to_int_map, int_to_char_map, char_set = read_maps()
+        print("char_set", char_set)
+        # char_to_int_map['_'] = '15'
+        # int_to_char_map['15'] = '_'
+        int_to_char_map["18"] = ""
+
+        trl, tl = Aget_dataloaders(
+            test_image_transform,
+            train_image_transform,
+            char_to_int_map,
+            int_to_char_map,
+            4000,
+            text_label_max_length,
+            char_set,
+        )
+
+        # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
+
+        BLANK_LABEL = 17
+
+        if model == 2:
+            crnn = CRNN().to(device)
+        elif model == 3:
+            crnn = CRNN_lstm().to(device)
+        elif model == 1:
+            crnn = CRNN_rnn().to(device)
+
+        criterion = nn.CTCLoss(blank=BLANK_LABEL, reduction="mean", zero_infinity=True)
+        optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
+
+        MAX_EPOCHS = 2500
+        list_training_loss = []
+        list_testing_loss = []
+        list_testing_wer = []
+        list_testing_cer = []
+
+        for epoch in range(MAX_EPOCHS):
+            training_loss = train(
+                trl, crnn, optimizer, criterion, BLANK_LABEL, text_label_max_length
+            )
+            testing_loss, wer, cer = test(
+                int_to_char_map,
+                tl,
+                crnn,
+                optimizer,
+                criterion,
+                BLANK_LABEL,
+                text_label_max_length,
+            )
+
+            list_training_loss.append(training_loss)
+            list_testing_loss.append(testing_loss)
+            list_testing_wer.append(wer)
+            list_testing_cer.append(cer)
+
+            prefix = ""
+            if model == 2:
+                prefix = "gru_"
+            elif model == 3:
+                prefix = "lstm_"
+            elif model == 1:
+                prefix = "rnn_"
+
+            if epoch == 4:
+                print("training loss", list_training_loss)
+                with open(generated_data_dir() + "list_training_loss.pkl", "wb") as f1:
+                    pickle.dump(list_training_loss, f1)
+                print("testing loss", list_testing_loss)
+                with open(generated_data_dir() + "list_testing_loss.pkl", "wb") as f2:
+                    pickle.dump(list_testing_loss, f2)
+                with open(
+                    generated_data_dir() + prefix + "list_testing_wer.pkl", "wb"
+                ) as f3:
+                    pickle.dump(list_testing_wer, f3)
+                with open(
+                    generated_data_dir() + prefix + "list_testing_cer.pkl", "wb"
+                ) as f4:
+                    pickle.dump(list_testing_cer, f4)
+                break
+
+        torch.save(crnn.state_dict(), generated_data_dir() + "trained_reader")
+if do == 111:
+
+    model = simple_model()
+    torchinfo.summary(
+        model,
+        input_size=(1, 1, 156, 44),
+    )
 
 if do == 2:
     print("visualize featuremap")

@@ -3,12 +3,20 @@ import os
 import torch
 import torchvision
 import torchvision.transforms
+import os, shutil
 from matplotlib import pyplot as plt
+import albumentations as A
 from torch.utils import data as data_utils
 from torchvision.io import read_image
 from torchvision.utils import draw_bounding_boxes
 
-from files.dataset import HTRDataset
+
+from files.dataset import (
+    HTRDataset,
+    TransformedDataset,
+    AHTRDataset,
+    TransformedDatasetReplay,
+)
 from files.transform import TextToInt, FillArray, IntToText
 from files.functions import (
     ascii_dir,
@@ -90,6 +98,81 @@ def get_dataloaders(
     return train_loader, test_loader
 
 
+def Aget_dataloaders(
+    test_image_transform,
+    train_image_transform,
+    char_to_int_map,
+    int_to_char_map,
+    num_of_rows,
+    text_label_max_length,
+    char_set,
+    # same_sets=False,
+):
+
+    seq_dataset = AHTRDataset(
+        "file_names-labels.csv",
+        text_label_max_length,
+        char_to_int_map,
+        int_to_char_map,
+        char_set,
+        None,
+        num_of_rows,
+    )
+
+    lengths = [int(len(seq_dataset) * 0.8), int(len(seq_dataset) * 0.2)]
+    train_subset, test_subset = torch.utils.data.random_split(seq_dataset, lengths)
+
+    train_set = TransformedDataset(train_subset, transforms=train_image_transform)
+
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=False)
+    test_set = TransformedDataset(test_subset, transforms=test_image_transform)
+
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
+
+    return train_loader, test_loader
+
+
+def get_replay_dataset(
+    text_label_max_length,
+    char_to_int_map,
+    int_to_char_map,
+    char_set,
+    num_of_rows=1000,
+):
+    # test_image_transform = A.Compose([])
+    train_image_transform = A.ReplayCompose(
+        [
+            A.Rotate(limit=(-45.75, 45.75), p=1, always_apply=True),
+            A.OneOf(
+                [
+                    A.GaussNoise(p=1),
+                    A.Blur(p=1),
+                    A.RandomGamma(p=1),
+                    A.GridDistortion(p=1),
+                    # A.PixelDropout(p=1, drop_value=None),
+                    A.Morphological(p=1, scale=(4, 6), operation="dilation"),
+                    A.Morphological(p=1, scale=(4, 6), operation="erosion"),
+                    A.RandomBrightnessContrast(p=0.1),
+                ],
+                p=1,
+            ),
+            # A.InvertImg(p=1),
+            # AResizeWithPad(h=44, w=156),
+        ]
+    )
+    dataset = AHTRDataset(
+        "file_names-labels.csv",
+        text_label_max_length,
+        char_to_int_map,
+        int_to_char_map,
+        char_set,
+        None,
+        num_of_rows,
+    )
+    train_set = TransformedDatasetReplay(dataset, transforms=train_image_transform)
+    return train_set
+
+
 def all_chars_in_set(str, set):
     for ch in str:
         if ch not in set:
@@ -98,9 +181,14 @@ def all_chars_in_set(str, set):
 
 
 def dataloader_show(loader, number_of_images, int_to_char_map):
+    print("lengte dl:" + str(len(loader.dataset)))
+    # print(len(loader[0]))
     for batch_id, (x_test, y_test) in enumerate(loader):
+        print(str(x_test[0].shape))
         for j in range(len(x_test)):
-            plt.imshow(x_test[j], cmap="gray")
+            image = x_test[j].permute(1, 2, 0).numpy()
+            # print("show: " + str(x_test[j].shape))
+            plt.imshow(image, cmap="gray")
             plt.show()
 
             print("word as IntTensor")
