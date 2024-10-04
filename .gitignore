@@ -1,3 +1,4 @@
 /images_and_transform/**
 /scores/base/aug/**
 /scores/base/no_aug/**
+/.idea/**
