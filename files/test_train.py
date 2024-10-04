@@ -49,7 +49,7 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
             # print('prediction:', prediction)
             sz = len(prediction)
             for x in range(num_chars - sz):
-                prediction = torch.cat((prediction, torch.IntTensor([16])), 0)
+                prediction = torch.cat((prediction, torch.IntTensor([18])), 0)
 
             # print('prediction:', prediction)
             # print('y_train:', y_train[i])
@@ -79,6 +79,7 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
     int_to_string = IntToString(int_to_char_map)
     list_of_words = list()
     list_of_hypotheses = list()
+    list_of_lengths_and_correctness = {}
     correct = 0
     total = 0
     num_batches = 0
@@ -111,9 +112,36 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
             y_test_as_string = int_to_string(y_test[i])
             list_of_hypotheses.append(prediction_as_string)
             list_of_words.append(y_test_as_string)
+            # print(prediction_as_string)
+            # print(y_test_as_string)
+            if prediction_as_string == y_test_as_string:
+                list_of_lengths_and_correctness[(len(y_test_as_string), "correct")] = (
+                    list_of_lengths_and_correctness[(len(y_test_as_string), "correct")]
+                    + 1
+                    if list_of_lengths_and_correctness.get(
+                        (len(y_test_as_string), "correct")
+                    )
+                    is not None
+                    else 1
+                )
+            else:
+                list_of_lengths_and_correctness[
+                    (len(y_test_as_string), "incorrect")
+                ] = (
+                    list_of_lengths_and_correctness[
+                        (len(y_test_as_string), "incorrect")
+                    ]
+                    + 1
+                    if list_of_lengths_and_correctness.get(
+                        (len(y_test_as_string), "incorrect")
+                    )
+                    is not None
+                    else 1
+                )
+
             sz = len(prediction)
             for x in range(num_chars - sz):
-                prediction = torch.cat((prediction, torch.IntTensor([16])), 0)
+                prediction = torch.cat((prediction, torch.IntTensor([18])), 0)
 
             if len(prediction) == len(y_test[i]) and torch.all(
                 prediction.eq(y_test[i])
@@ -128,6 +156,7 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
     cer = jiwer.cer(list_of_words, list_of_hypotheses)
     print("wer:", wer)
     print("cer:", cer)
+    print("length and correctness: ", list_of_lengths_and_correctness)
     print("TEST correct: ", correct, "/", total, " P:", ratio)
 
-    return total_loss / num_batches, wer, cer
+    return total_loss / num_batches, wer, cer, list_of_lengths_and_correctness

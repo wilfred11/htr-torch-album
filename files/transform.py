@@ -57,7 +57,7 @@ class FillArray:
 
     def __call__(self, array):
         for i in range(self.length - len(array)):
-            array.append(16)
+            array.append(18)
 
         return array
 

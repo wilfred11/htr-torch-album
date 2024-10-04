@@ -53,95 +53,11 @@ text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
 
-if do == 1:
-    with keep.running() as k:
-        print("htr training and testing")
-        read_words_generate_csv()
+models = ["gru"]
 
-        char_to_int_map, int_to_char_map, char_set = read_maps()
-        print("char_set", char_set)
-        print(int_to_char_map)
-        # char_to_int_map['_'] = '15'
-        # int_to_char_map['15'] = '_'
-        int_to_char_map["16"] = ""
-
-        trl, tl = get_dataloaders(
-            image_transform,
-            char_to_int_map,
-            int_to_char_map,
-            800,
-            text_label_max_length,
-            char_set,
-        )
-
-        dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
-
-        BLANK_LABEL = 17
-
-        if model == 2:
-            crnn = CRNN().to(device)
-        elif model == 3:
-            crnn = CRNN_lstm().to(device)
-        elif model == 1:
-            crnn = CRNN_rnn().to(device)
-
-        criterion = nn.CTCLoss(blank=BLANK_LABEL, reduction="mean", zero_infinity=True)
-        optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
-
-        MAX_EPOCHS = 2500
-        list_training_loss = []
-        list_testing_loss = []
-        list_testing_wer = []
-        list_testing_cer = []
-
-        for epoch in range(MAX_EPOCHS):
-            training_loss = train(
-                trl, crnn, optimizer, criterion, BLANK_LABEL, text_label_max_length
-            )
-            testing_loss, wer, cer = test(
-                int_to_char_map,
-                tl,
-                crnn,
-                optimizer,
-                criterion,
-                BLANK_LABEL,
-                text_label_max_length,
-            )
-
-            list_training_loss.append(training_loss)
-            list_testing_loss.append(testing_loss)
-            list_testing_wer.append(wer)
-            list_testing_cer.append(cer)
-
-            prefix = ""
-            if model == 2:
-                prefix = "gru_"
-            elif model == 3:
-                prefix = "lstm_"
-            elif model == 1:
-                prefix = "rnn_"
-
-            if epoch == 4:
-                print("training loss", list_training_loss)
-                with open(generated_data_dir() + "list_training_loss.pkl", "wb") as f1:
-                    pickle.dump(list_training_loss, f1)
-                print("testing loss", list_testing_loss)
-                with open(generated_data_dir() + "list_testing_loss.pkl", "wb") as f2:
-                    pickle.dump(list_testing_loss, f2)
-                with open(
-                    generated_data_dir() + prefix + "list_testing_wer.pkl", "wb"
-                ) as f3:
-                    pickle.dump(list_testing_wer, f3)
-                with open(
-                    generated_data_dir() + prefix + "list_testing_cer.pkl", "wb"
-                ) as f4:
-                    pickle.dump(list_testing_cer, f4)
-                break
-
-        torch.save(crnn.state_dict(), generated_data_dir() + "trained_reader")
 
 if do == 110:
-    print("showing")
+    print("saving images and transforms")
 
     # train_image_transform = A.Compose([])
 
@@ -184,8 +100,7 @@ if do == 11:
             shutil.rmtree(tf)
         os.mkdir(tf)
 
-    models = [1, 2, 3]
-    augs = [0, 1]
+    augs = [1]
 
     for model in models:
         for aug in augs:
@@ -205,9 +120,10 @@ if do == 11:
                                     p=1, scale=(4, 6), operation="dilation"
                                 ),
                                 A.Morphological(p=1, scale=(4, 6), operation="erosion"),
-                                A.RandomBrightnessContrast(p=0.1),
+                                A.RandomBrightnessContrast(p=1),
+                                A.Affine(p=1),
                             ],
-                            p=0.50,
+                            p=1,
                         ),
                         # A.InvertImg(p=1),
                         # AResizeWithPad(h=44, w=156),
@@ -223,16 +139,19 @@ if do == 11:
 
                 char_to_int_map, int_to_char_map, char_set = read_maps()
                 print("char_set", char_set)
-                # char_to_int_map['_'] = '15'
+                # char_to_int_map['_'] = '17'
                 # int_to_char_map['15'] = '_'
                 int_to_char_map["18"] = ""
+                print("char_set", char_set)
+                print("int to char map", int_to_char_map)
+                print("char to int map", char_to_int_map)
 
                 trl, tl = Aget_dataloaders(
                     test_image_transform,
                     train_image_transform,
                     char_to_int_map,
                     int_to_char_map,
-                    1000,
+                    8000,
                     text_label_max_length,
                     char_set,
                 )
@@ -241,12 +160,14 @@ if do == 11:
 
                 BLANK_LABEL = 17
 
-                if model == 2:
+                if model == "gru":
                     crnn = CRNN().to(device)
-                elif model == 3:
+                elif model == "lstm":
                     crnn = CRNN_lstm().to(device)
-                elif model == 1:
+                elif model == "rnn":
                     crnn = CRNN_rnn().to(device)
+
+                prefix = model + "_"
 
                 criterion = nn.CTCLoss(
                     blank=BLANK_LABEL, reduction="mean", zero_infinity=True
@@ -258,6 +179,7 @@ if do == 11:
                 list_testing_loss = []
                 list_testing_wer = []
                 list_testing_cer = []
+                list_length_correct = []
 
                 for epoch in range(MAX_EPOCHS):
                     training_loss = train(
@@ -268,7 +190,7 @@ if do == 11:
                         BLANK_LABEL,
                         text_label_max_length,
                     )
-                    testing_loss, wer, cer = test(
+                    testing_loss, wer, cer, length_correct = test(
                         int_to_char_map,
                         tl,
                         crnn,
@@ -282,14 +204,7 @@ if do == 11:
                     list_testing_loss.append(testing_loss)
                     list_testing_wer.append(wer)
                     list_testing_cer.append(cer)
-
-                    prefix = ""
-                    if model == 2:
-                        prefix = "gru_"
-                    elif model == 3:
-                        prefix = "lstm_"
-                    elif model == 1:
-                        prefix = "rnn_"
+                    list_length_correct.append(length_correct)
 
                     if aug == 0:
                         dir = base_no_aug_score_dir()

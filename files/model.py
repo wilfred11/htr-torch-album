@@ -12,7 +12,7 @@ class simple_model(nn.Module):
     def __init__(self):
         super(simple_model, self).__init__()
 
-        self.num_classes = 16 + 1
+        self.num_classes = 18 + 1
         self.image_H = 32
 
         self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
@@ -34,9 +34,6 @@ class simple_model(nn.Module):
         self.in6 = nn.InstanceNorm2d(64)
         # http://layer-calc.com/
         # c= 64 h=10 w=43
-
-        self.postconv_height = 4
-        self.postconv_width = 23
 
     def forward(self, x):
         batch_size = x.shape[0]
