@@ -156,7 +156,8 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
     cer = jiwer.cer(list_of_words, list_of_hypotheses)
     print("wer:", wer)
     print("cer:", cer)
-    print("length and correctness: ", list_of_lengths_and_correctness)
+    lolc = dict(sorted(list_of_lengths_and_correctness.items()))
+    print("length and correctness: ", lolc)
     print("TEST correct: ", correct, "/", total, " P:", ratio)
 
-    return total_loss / num_batches, wer, cer, list_of_lengths_and_correctness
+    return total_loss / num_batches, wer, cer, lolc

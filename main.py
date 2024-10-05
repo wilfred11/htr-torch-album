@@ -29,6 +29,8 @@ from files.model import (
     CRNN_lstm,
     CRNN_rnn,
     simple_model,
+    CRNN_adv,
+    advanced_model,
 )
 from files.test_train import train, test
 from files.functions import (
@@ -99,137 +101,156 @@ if do == 11:
         if os.path.isdir(tf):
             shutil.rmtree(tf)
         os.mkdir(tf)
-
+    # augs = [0, 1]
     augs = [1]
+    advs = [1]
 
     for model in models:
-        for aug in augs:
-            test_image_transform = A.Compose([])
-            if aug == 1:
-                train_image_transform = A.Compose(
-                    [
-                        A.Rotate(limit=(-45.75, 45.75), p=1),
-                        A.OneOf(
-                            [
-                                A.GaussNoise(p=1),
-                                A.Blur(p=1),
-                                A.RandomGamma(p=1),
-                                A.GridDistortion(p=1),
-                                # A.PixelDropout(p=1, drop_value=None),
-                                A.Morphological(
-                                    p=1, scale=(4, 6), operation="dilation"
-                                ),
-                                A.Morphological(p=1, scale=(4, 6), operation="erosion"),
-                                A.RandomBrightnessContrast(p=1),
-                                A.Affine(p=1),
-                            ],
-                            p=1,
-                        ),
-                        # A.InvertImg(p=1),
-                        # AResizeWithPad(h=44, w=156),
-                    ]
-                )
-
-            if aug == 0:
-                train_image_transform = A.Compose([])
-
-            with keep.running() as k:
-                print("htr training and testing")
-                read_words_generate_csv()
-
-                char_to_int_map, int_to_char_map, char_set = read_maps()
-                print("char_set", char_set)
-                # char_to_int_map['_'] = '17'
-                # int_to_char_map['15'] = '_'
-                int_to_char_map["18"] = ""
-                print("char_set", char_set)
-                print("int to char map", int_to_char_map)
-                print("char to int map", char_to_int_map)
-
-                trl, tl = Aget_dataloaders(
-                    test_image_transform,
-                    train_image_transform,
-                    char_to_int_map,
-                    int_to_char_map,
-                    8000,
-                    text_label_max_length,
-                    char_set,
-                )
-
-                # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
-
-                BLANK_LABEL = 17
-
-                if model == "gru":
-                    crnn = CRNN().to(device)
-                elif model == "lstm":
-                    crnn = CRNN_lstm().to(device)
-                elif model == "rnn":
-                    crnn = CRNN_rnn().to(device)
-
-                prefix = model + "_"
-
-                criterion = nn.CTCLoss(
-                    blank=BLANK_LABEL, reduction="mean", zero_infinity=True
-                )
-                optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
-
-                MAX_EPOCHS = 2500
-                list_training_loss = []
-                list_testing_loss = []
-                list_testing_wer = []
-                list_testing_cer = []
-                list_length_correct = []
-
-                for epoch in range(MAX_EPOCHS):
-                    training_loss = train(
-                        trl,
-                        crnn,
-                        optimizer,
-                        criterion,
-                        BLANK_LABEL,
-                        text_label_max_length,
+        for adv in advs:
+            for aug in augs:
+                test_image_transform = A.Compose([])
+                if aug == 1:
+                    train_image_transform = A.Compose(
+                        [
+                            A.Rotate(limit=(-45.75, 45.75), p=1),
+                            A.OneOf(
+                                [
+                                    A.GaussNoise(p=1),
+                                    A.Blur(p=1),
+                                    A.RandomGamma(p=1),
+                                    A.GridDistortion(p=1),
+                                    # A.PixelDropout(p=1, drop_value=None),
+                                    A.Morphological(
+                                        p=1, scale=(4, 6), operation="dilation"
+                                    ),
+                                    A.Morphological(
+                                        p=1, scale=(4, 6), operation="erosion"
+                                    ),
+                                    A.RandomBrightnessContrast(p=1),
+                                    A.Affine(p=1),
+                                ],
+                                p=1,
+                            ),
+                            # A.InvertImg(p=1),
+                            # AResizeWithPad(h=44, w=156),
+                        ]
                     )
-                    testing_loss, wer, cer, length_correct = test(
+
+                if aug == 0:
+                    train_image_transform = A.Compose([])
+
+                with keep.running() as k:
+                    print("htr training and testing")
+                    read_words_generate_csv()
+
+                    char_to_int_map, int_to_char_map, char_set = read_maps()
+                    print("char_set", char_set)
+                    # char_to_int_map['_'] = '17'
+                    # int_to_char_map['15'] = '_'
+                    int_to_char_map["18"] = ""
+                    print("char_set", char_set)
+                    print("int to char map", int_to_char_map)
+                    print("char to int map", char_to_int_map)
+
+                    trl, tl = Aget_dataloaders(
+                        test_image_transform,
+                        train_image_transform,
+                        char_to_int_map,
                         int_to_char_map,
-                        tl,
-                        crnn,
-                        optimizer,
-                        criterion,
-                        BLANK_LABEL,
+                        1000,
                         text_label_max_length,
+                        char_set,
                     )
 
-                    list_training_loss.append(training_loss)
-                    list_testing_loss.append(testing_loss)
-                    list_testing_wer.append(wer)
-                    list_testing_cer.append(cer)
-                    list_length_correct.append(length_correct)
+                    # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
-                    if aug == 0:
-                        dir = base_no_aug_score_dir()
-                    else:
-                        dir = base_aug_score_dir()
+                    BLANK_LABEL = 17
 
-                    if epoch == 4:
-                        print("training loss", list_training_loss)
-                        with open(dir + prefix + "list_training_loss.pkl", "wb") as f1:
-                            pickle.dump(list_training_loss, f1)
-                        print("testing loss", list_testing_loss)
-                        with open(dir + prefix + "list_testing_loss.pkl", "wb") as f2:
-                            pickle.dump(list_testing_loss, f2)
-                        with open(dir + prefix + "list_testing_wer.pkl", "wb") as f3:
-                            pickle.dump(list_testing_wer, f3)
-                        with open(dir + prefix + "list_testing_cer.pkl", "wb") as f4:
-                            pickle.dump(list_testing_cer, f4)
-                        break
+                    if model == "gru" and adv == 0:
+                        crnn = CRNN().to(device)
+                    elif model == "lstm" and adv == 0:
+                        crnn = CRNN_lstm().to(device)
+                    elif model == "rnn" and adv == 0:
+                        crnn = CRNN_rnn().to(device)
+                    elif model == "gru" and adv == 1:
+                        crnn = CRNN_adv().to(device)
 
-                torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
+                    prefix = model + "_"
+
+                    criterion = nn.CTCLoss(
+                        blank=BLANK_LABEL, reduction="mean", zero_infinity=True
+                    )
+                    optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
+
+                    MAX_EPOCHS = 2500
+                    list_training_loss = []
+                    list_testing_loss = []
+                    list_testing_wer = []
+                    list_testing_cer = []
+                    list_length_correct = []
+
+                    for epoch in range(MAX_EPOCHS):
+                        training_loss = train(
+                            trl,
+                            crnn,
+                            optimizer,
+                            criterion,
+                            BLANK_LABEL,
+                            text_label_max_length,
+                        )
+                        testing_loss, wer, cer, length_correct = test(
+                            int_to_char_map,
+                            tl,
+                            crnn,
+                            optimizer,
+                            criterion,
+                            BLANK_LABEL,
+                            text_label_max_length,
+                        )
+
+                        list_training_loss.append(training_loss)
+                        list_testing_loss.append(testing_loss)
+                        list_testing_wer.append(wer)
+                        list_testing_cer.append(cer)
+                        list_length_correct.append(length_correct)
+
+                        if aug == 0:
+                            dir = base_no_aug_score_dir()
+                        else:
+                            dir = base_aug_score_dir()
+
+                        if epoch == 4:
+                            print("training loss", list_training_loss)
+                            with open(
+                                dir + prefix + "list_training_loss.pkl", "wb"
+                            ) as f1:
+                                pickle.dump(list_training_loss, f1)
+                            print("testing loss", list_testing_loss)
+                            with open(
+                                dir + prefix + "list_testing_loss.pkl", "wb"
+                            ) as f2:
+                                pickle.dump(list_testing_loss, f2)
+                            with open(
+                                dir + prefix + "list_testing_wer.pkl", "wb"
+                            ) as f3:
+                                pickle.dump(list_testing_wer, f3)
+                            with open(
+                                dir + prefix + "list_testing_cer.pkl", "wb"
+                            ) as f4:
+                                pickle.dump(list_testing_cer, f4)
+                            break
+
+                    torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
 if do == 111:
 
     model = simple_model()
     torchinfo.summary(
         model,
+        input_size=(1, 1, 156, 44),
+    )
+    adv_model = advanced_model()
+    torchinfo.summary(
+        adv_model,
         input_size=(1, 1, 156, 44),
     )
 
