@@ -160,7 +160,7 @@ class CRNN_adv(nn.Module):
         # self.gru_hidden_size = 128
         self.gru_hidden_size = 192
         # self.gru_num_layers = 2
-        self.gru_num_layers = 4
+        self.gru_num_layers = 2
         self.gru_h = None
         self.gru_cell = None
 

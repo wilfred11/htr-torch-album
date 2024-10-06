@@ -40,6 +40,8 @@ from files.functions import (
     base_aug_score_dir,
     aug_graphs,
     no_aug_graphs,
+    adv_no_aug_score_dir,
+    adv_aug_score_dir,
 )
 from wakepy import keep
 
@@ -96,14 +98,22 @@ if do == 110:
 
 
 if do == 11:
-    tfs = ["scores", "scores/base", "scores/base/aug", "scores/base/no_aug"]
+    tfs = [
+        "scores",
+        "scores/adv",
+        "scores/base",
+        "scores/base/aug",
+        "scores/adv/aug",
+        "scores/base/no_aug",
+        "scores/adv/no_aug",
+    ]
     for tf in tfs:
         if os.path.isdir(tf):
             shutil.rmtree(tf)
         os.mkdir(tf)
     # augs = [0, 1]
-    augs = [1]
-    advs = [1]
+    augs = [0, 1]
+    advs = [0, 1]
 
     for model in models:
         for adv in advs:
@@ -157,7 +167,7 @@ if do == 11:
                         train_image_transform,
                         char_to_int_map,
                         int_to_char_map,
-                        1000,
+                        100,
                         text_label_max_length,
                         char_set,
                     )
@@ -214,10 +224,14 @@ if do == 11:
                         list_testing_cer.append(cer)
                         list_length_correct.append(length_correct)
 
-                        if aug == 0:
+                        if aug == 0 and adv == 0:
                             dir = base_no_aug_score_dir()
-                        else:
+                        elif aug == 1 and adv == 0:
                             dir = base_aug_score_dir()
+                        elif aug == 0 and adv == 1:
+                            dir = adv_no_aug_score_dir()
+                        elif aug == 1 and adv == 1:
+                            dir = adv_aug_score_dir()
 
                         if epoch == 4:
                             print("training loss", list_training_loss)
@@ -238,6 +252,11 @@ if do == 11:
                                 dir + prefix + "list_testing_cer.pkl", "wb"
                             ) as f4:
                                 pickle.dump(list_testing_cer, f4)
+                            with open(
+                                dir + prefix + "list_testing_length_correct.pkl", "wb"
+                            ) as f5:
+                                pickle.dump(list_length_correct, f5)
+
                             break
 
                     torch.save(crnn.state_dict(), dir + prefix + "trained_reader")

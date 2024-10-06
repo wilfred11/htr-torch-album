@@ -10,10 +10,6 @@ def score_dir():
     return "scores/"
 
 
-def base_aug_score_dir():
-    return "scores/base/aug/"
-
-
 def base_no_aug_score_dir():
     return "scores/base/no_aug/"
 
@@ -30,8 +26,20 @@ def aug_graphs():
     return "aug/graphs/"
 
 
+def base_no_aug_score_dir():
+    return "scores/base/no_aug/"
+
+
 def adv_no_aug_score_dir():
     return "scores/adv/no_aug/"
+
+
+def base_aug_score_dir():
+    return "scores/base/aug/"
+
+
+def adv_aug_score_dir():
+    return "scores/adv/aug/"
 
 
 def iam_dir():
