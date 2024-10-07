@@ -17,6 +17,8 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
         batch_size = x_train.shape[0]
         crnn.reset_hidden(batch_size)
         # print(x_train.shape)
+        # print(x_train)
+        # print(y_train)
         x_train = x_train.view(x_train.shape[0], 1, x_train.shape[2], x_train.shape[3])
 
         optimizer.zero_grad()

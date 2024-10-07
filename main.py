@@ -19,7 +19,11 @@ from files.data import (
     Aget_dataloaders,
     get_replay_dataset,
 )
-from files.dataset import CustomObjectDetectionDataset
+from files.dataset import (
+    CustomObjectDetectionDataset,
+    AHTRDataset,
+    KFoldTransformedDatasetIterator,
+)
 from files.transform import ResizeWithPad, AResizeWithPad
 import torch
 from files.model import (
@@ -51,7 +55,7 @@ from wakepy import keep
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
-do = 11
+do = 1111
 # aug = 0
 # aug = 1
 
@@ -257,6 +261,192 @@ if do == 11:
                                 pickle.dump(list_testing_cer, f4)
                             with open(
                                 dir + prefix + "list_testing_length_correct.pkl", "wb"
+                            ) as f5:
+                                pickle.dump(list_length_correct, f5)
+
+                            break
+
+                    torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
+
+
+if do == 1111:
+    tfs = [
+        "scores",
+        "scores/adv",
+        "scores/base",
+        "scores/base/aug",
+        "scores/adv/aug",
+        "scores/base/no_aug",
+        "scores/adv/no_aug",
+    ]
+    for tf in tfs:
+        if os.path.isdir(tf):
+            shutil.rmtree(tf)
+        os.mkdir(tf)
+    # augs = [0, 1]
+    augs = [0]
+    advs = [1]
+
+    for model in models:
+        for adv in advs:
+            for aug in augs:
+                print("context: " + model + " adv: " + str(adv) + " aug: " + str(aug))
+                test_image_transform = A.Compose([])
+                if aug == 1:
+                    train_image_transform = A.Compose(
+                        [
+                            A.Rotate(limit=(-45.75, 45.75), p=1),
+                            A.OneOf(
+                                [
+                                    A.GaussNoise(p=1),
+                                    A.Blur(p=1),
+                                    A.RandomGamma(p=1),
+                                    A.GridDistortion(p=1),
+                                    # A.PixelDropout(p=1, drop_value=None),
+                                    A.Morphological(
+                                        p=1, scale=(4, 6), operation="dilation"
+                                    ),
+                                    A.Morphological(
+                                        p=1, scale=(4, 6), operation="erosion"
+                                    ),
+                                    A.RandomBrightnessContrast(p=1),
+                                    A.Affine(p=1),
+                                ],
+                                p=1,
+                            ),
+                            # A.InvertImg(p=1),
+                            # AResizeWithPad(h=44, w=156),
+                        ]
+                    )
+
+                if aug == 0:
+                    train_image_transform = A.Compose([])
+
+                with keep.running() as k:
+                    print("htr training and testing")
+                    read_words_generate_csv()
+
+                    char_to_int_map, int_to_char_map, char_set = read_maps()
+                    print("char_set", char_set)
+                    # char_to_int_map['_'] = '17'
+                    # int_to_char_map['15'] = '_'
+                    int_to_char_map["18"] = ""
+                    print("char_set", char_set)
+                    print("int to char map", int_to_char_map)
+                    print("char to int map", char_to_int_map)
+
+                    BLANK_LABEL = 17
+
+                    if model == "gru" and adv == 0:
+                        crnn = CRNN().to(device)
+                    elif model == "lstm" and adv == 0:
+                        crnn = CRNN_lstm().to(device)
+                    elif model == "rnn" and adv == 0:
+                        crnn = CRNN_rnn().to(device)
+                    elif model == "gru" and adv == 1:
+                        crnn = CRNN_adv().to(device)
+
+                    prefix = model + "_"
+
+                    criterion = nn.CTCLoss(
+                        blank=BLANK_LABEL, reduction="mean", zero_infinity=True
+                    )
+                    optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
+
+                    MAX_EPOCHS = 2500
+
+                    dataset = AHTRDataset(
+                        "file_names-labels.csv",
+                        text_label_max_length,
+                        char_to_int_map,
+                        int_to_char_map,
+                        char_set,
+                        None,
+                        8000,
+                    )
+                    # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
+
+                    list_training_loss = []
+                    list_testing_loss = []
+                    list_testing_wer = []
+                    list_testing_cer = []
+                    list_length_correct = []
+
+                    for fold in range(5):
+
+                        data_handler = KFoldTransformedDatasetIterator(
+                            dataset,
+                            current_fold=fold,
+                            num_fold=5,
+                            train_transform=train_image_transform,
+                            test_transform=test_image_transform,
+                        )
+
+                        train_data, test_data = data_handler.get_splits()
+                        print("length traindata:", len(train_data))
+                        print("length testdata:", len(test_data))
+
+                        trl = torch.utils.data.DataLoader(
+                            train_data, batch_size=4, shuffle=False
+                        )
+                        tl = torch.utils.data.DataLoader(
+                            test_data, batch_size=1, shuffle=False
+                        )
+                        training_loss = train(
+                            trl,
+                            crnn,
+                            optimizer,
+                            criterion,
+                            BLANK_LABEL,
+                            text_label_max_length,
+                        )
+                        testing_loss, wer, cer, length_correct = test(
+                            int_to_char_map,
+                            tl,
+                            crnn,
+                            optimizer,
+                            criterion,
+                            BLANK_LABEL,
+                            text_label_max_length,
+                        )
+
+                        list_training_loss.append(training_loss)
+                        list_testing_loss.append(testing_loss)
+                        list_testing_wer.append(wer)
+                        list_testing_cer.append(cer)
+                        list_length_correct.append(length_correct)
+
+                        if aug == 0 and adv == 0:
+                            dir = base_no_aug_score_dir()
+                        elif aug == 1 and adv == 0:
+                            dir = base_aug_score_dir()
+                        elif aug == 0 and adv == 1:
+                            dir = adv_no_aug_score_dir()
+                        elif aug == 1 and adv == 1:
+                            dir = adv_aug_score_dir()
+
+                        if fold == 4:
+                            print("training loss", list_training_loss)
+                            with open(
+                                dir + prefix + "list_training_loss.pkl", "wb"
+                            ) as f1:
+                                pickle.dump(list_training_loss, f1)
+                            print("testing loss", list_testing_loss)
+                            with open(
+                                dir + prefix + "list_testing_loss.pkl", "wb"
+                            ) as f2:
+                                pickle.dump(list_testing_loss, f2)
+                            with open(
+                                dir + prefix + "list_testing_wer.pkl", "wb"
+                            ) as f3:
+                                pickle.dump(list_testing_wer, f3)
+                            with open(
+                                dir + prefix + "list_testing_cer.pkl", "wb"
+                            ) as f4:
+                                pickle.dump(list_testing_cer, f4)
+                            with open(
+                                dir + prefix + "list_testing_length_correct.pkl",
+                                "wb",
                             ) as f5:
                                 pickle.dump(list_length_correct, f5)
 

@@ -14,10 +14,11 @@ from albumentations.pytorch import ToTensorV2
 from torch import IntTensor, FloatTensor, tensor
 from collections import Counter
 from torch.nn import functional as F1
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 from torchvision.io import read_image
 from torchvision.transforms import v2
 from files.functions import htr_ds_dir, generated_data_dir
+from sklearn.model_selection import KFold
 import albumentations as A
 import torch
 from PIL import Image
@@ -243,6 +244,49 @@ class AHTRDataset(Dataset):
 
     def get_label_length_counts(self):
         return Counter(self.label_lengths)
+
+
+class KFoldTransformedDatasetIterator:
+    def __init__(
+        self,
+        base_dataset,
+        current_fold,
+        num_fold,
+        test_transform=A.Compose,
+        train_transform=A.Compose,
+    ):
+        self.base = base_dataset
+        self.train_transform = train_transform
+        self.test_transform = test_transform
+        self.num_fold = num_fold
+        self.current_fold = current_fold
+        self.kf = KFold(n_splits=num_fold, shuffle=True, random_state=42)
+
+    def get_splits(self):
+        """
+        Splits the dataset into training and validation subsets.
+
+        Returns:
+            tuple: A tuple containing the training and validation subsets.
+        """
+
+        fold_data = list(self.kf.split(self.base))
+        train_indices, val_indices = fold_data[self.current_fold]
+
+        train_data = self._get_train_subset(train_indices)
+        val_data = self._get_test_subset(val_indices)
+
+        return train_data, val_data
+
+    def _get_train_subset(self, indices):
+        return TransformedDataset(
+            Subset(self.base, indices), transforms=self.train_transform
+        )
+
+    def _get_test_subset(self, indices):
+        return TransformedDataset(
+            Subset(self.base, indices), transforms=self.test_transform
+        )
 
 
 class TransformedDataset(Dataset):

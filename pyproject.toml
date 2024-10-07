@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "htr-torch"
+name = "htr-torch-alb"
 version = "0.1.0"
 description = ""
 authors = ["wilfred11 <wilfredvancasteren@hotmail.com>"]
@@ -17,6 +17,7 @@ jiwer = "^3.0.4"
 albumentations = "^1.4.16"
 pillow = "^10.4.0"
 torchinfo = "^1.8.0"
+scikit-learn = "^1.5.2"
 
 
 [build-system]
