@@ -125,6 +125,71 @@ class advanced_model(nn.Module):
         return out
 
 
+class AdaptiveCNN(nn.Module):
+    def __init__(self, *args):
+        super().__init__()
+        for idx, module in enumerate(args):
+            # Here, `module` is an instance of a `Module` subclass. We save it
+            # in the member variable `_modules` of the `Module` class, and its
+            # type is OrderedDict
+            self._modules[str(idx)] = module
+
+    def forward(self, X):
+        # OrderedDict guarantees that members will be traversed in the order
+        # they were added
+        for block in self._modules.values():
+            X = block(X)
+        return X
+
+
+def advanced_CNN():
+    adv = AdaptiveCNN(
+        nn.Conv2d(1, 64, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(64),
+        nn.LeakyReLU(),
+        nn.Conv2d(64, 64, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(64),
+        nn.LeakyReLU(),
+        nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2),
+        nn.InstanceNorm2d(64),
+        nn.LeakyReLU(),
+        nn.Conv2d(64, 128, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(128),
+        nn.LeakyReLU(),
+        nn.Conv2d(128, 128, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(128),
+        nn.LeakyReLU(),
+        nn.Conv2d(128, 128, kernel_size=(3, 3), stride=2),
+        nn.InstanceNorm2d(128),
+        nn.LeakyReLU(),
+    )
+    return adv
+
+
+def simple_CNN():
+    simple = AdaptiveCNN(
+        nn.Conv2d(1, 32, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(32),
+        nn.LeakyReLU(),
+        nn.Conv2d(32, 32, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(32),
+        nn.LeakyReLU(),
+        nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2),
+        nn.InstanceNorm2d(32),
+        nn.LeakyReLU(),
+        nn.Conv2d(32, 64, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(64),
+        nn.LeakyReLU(),
+        nn.Conv2d(64, 64, kernel_size=(3, 3)),
+        nn.InstanceNorm2d(64),
+        nn.LeakyReLU(),
+        nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2),
+        nn.InstanceNorm2d(64),
+        nn.LeakyReLU(),
+    )
+    return simple
+
+
 class CRNN_adv(nn.Module):
 
     def __init__(self):
@@ -133,23 +198,7 @@ class CRNN_adv(nn.Module):
         self.num_classes = 18 + 1
         self.image_H = 44
 
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=(3, 3))
-        self.in1 = nn.InstanceNorm2d(64)
-
-        self.conv2 = nn.Conv2d(64, 64, kernel_size=(3, 3))
-        self.in2 = nn.InstanceNorm2d(64)
-
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
-        self.in3 = nn.InstanceNorm2d(64)
-
-        self.conv4 = nn.Conv2d(64, 128, kernel_size=(3, 3))
-        self.in4 = nn.InstanceNorm2d(128)
-
-        self.conv5 = nn.Conv2d(128, 128, kernel_size=(3, 3))
-        self.in5 = nn.InstanceNorm2d(128)
-
-        self.conv6 = nn.Conv2d(128, 128, kernel_size=(3, 3), stride=2)
-        self.in6 = nn.InstanceNorm2d(128)
+        self.cnn = advanced_CNN()
         # http://layer-calc.com/
         # c= 64 h=10 w=43
 
@@ -160,7 +209,7 @@ class CRNN_adv(nn.Module):
         # self.gru_hidden_size = 128
         self.gru_hidden_size = 192
         # self.gru_num_layers = 2
-        self.gru_num_layers = 2
+        self.gru_num_layers = 4
         self.gru_h = None
         self.gru_cell = None
 
@@ -177,29 +226,7 @@ class CRNN_adv(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
 
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
+        out = self.cnn(x)
         # print('out.shp before perm:', out.shape)
         out = out.permute(0, 3, 2, 1)
         # print('out.shp:', out.shape)
@@ -221,30 +248,7 @@ class CRNN_adv(nn.Module):
         self.gru_h = Variable(h)
 
     def simple_forward(self, x):
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
-
+        out = self.cnn(x)
         return out.permute(0, 2, 3, 1).detach().numpy()
 
 
@@ -256,23 +260,7 @@ class CRNN(nn.Module):
         self.num_classes = 18 + 1
         self.image_H = 44
 
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
-        self.in1 = nn.InstanceNorm2d(32)
-
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
-        self.in2 = nn.InstanceNorm2d(32)
-
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2)
-        self.in3 = nn.InstanceNorm2d(32)
-
-        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
-        self.in4 = nn.InstanceNorm2d(64)
-
-        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 3))
-        self.in5 = nn.InstanceNorm2d(64)
-
-        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
-        self.in6 = nn.InstanceNorm2d(64)
+        self.cnn = simple_CNN()
         # http://layer-calc.com/
         # c= 64 h=10 w=43
 
@@ -298,29 +286,7 @@ class CRNN(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
 
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
+        out = self.cnn(x)
         # print('out.shp before perm:', out.shape)
         out = out.permute(0, 3, 2, 1)
         # print('out.shp:', out.shape)
@@ -342,30 +308,7 @@ class CRNN(nn.Module):
         self.gru_h = Variable(h)
 
     def simple_forward(self, x):
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
-
+        out = self.cnn(x)
         return out.permute(0, 2, 3, 1).detach().numpy()
 
 
@@ -377,23 +320,7 @@ class CRNN_lstm(nn.Module):
         self.num_classes = 18 + 1
         self.image_H = 44
 
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
-        self.in1 = nn.InstanceNorm2d(32)
-
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
-        self.in2 = nn.InstanceNorm2d(32)
-
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2)
-        self.in3 = nn.InstanceNorm2d(32)
-
-        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
-        self.in4 = nn.InstanceNorm2d(64)
-
-        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 3))
-        self.in5 = nn.InstanceNorm2d(64)
-
-        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
-        self.in6 = nn.InstanceNorm2d(64)
+        self.cnn = simple_CNN()
         # http://layer-calc.com/
         # c= 64 h=10 w=43
 
@@ -419,29 +346,7 @@ class CRNN_lstm(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
 
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
+        out = self.cnn(x)
 
         out = out.permute(0, 3, 2, 1)
         out = out.reshape(batch_size, -1, self.lstm_input_size)
@@ -461,30 +366,7 @@ class CRNN_lstm(nn.Module):
         self.lstm_c = Variable(c)
 
     def simple_forward(self, x):
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
-
+        out = self.cnn(x)
         return out.permute(0, 2, 3, 1).detach().numpy()
 
 
@@ -496,23 +378,7 @@ class CRNN_rnn(nn.Module):
         self.num_classes = 18 + 1
         self.image_H = 44
 
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
-        self.in1 = nn.InstanceNorm2d(32)
-
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
-        self.in2 = nn.InstanceNorm2d(32)
-
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2)
-        self.in3 = nn.InstanceNorm2d(32)
-
-        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
-        self.in4 = nn.InstanceNorm2d(64)
-
-        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 3))
-        self.in5 = nn.InstanceNorm2d(64)
-
-        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
-        self.in6 = nn.InstanceNorm2d(64)
+        self.cnn = simple_CNN()
         # http://layer-calc.com/
         # c= 64 h=10 w=43
 
@@ -534,29 +400,7 @@ class CRNN_rnn(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
 
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
+        out = self.cnn(x)
 
         out = out.permute(0, 3, 2, 1)
         out = out.reshape(batch_size, -1, self.rnn_input_size)
@@ -573,30 +417,7 @@ class CRNN_rnn(nn.Module):
         self.rnn_h = Variable(h)
 
     def simple_forward(self, x):
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
-
+        out = self.cnn(x)
         return out.permute(0, 2, 3, 1).detach().numpy()
 
 

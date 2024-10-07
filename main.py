@@ -31,6 +31,8 @@ from files.model import (
     simple_model,
     CRNN_adv,
     advanced_model,
+    simple_CNN,
+    advanced_CNN,
 )
 from files.test_train import train, test
 from files.functions import (
@@ -112,12 +114,13 @@ if do == 11:
             shutil.rmtree(tf)
         os.mkdir(tf)
     # augs = [0, 1]
-    augs = [0, 1]
-    advs = [0, 1]
+    augs = [0]
+    advs = [1]
 
     for model in models:
         for adv in advs:
             for aug in augs:
+                print("context: " + model + " adv: " + str(adv) + " aug: " + str(aug))
                 test_image_transform = A.Compose([])
                 if aug == 1:
                     train_image_transform = A.Compose(
@@ -167,7 +170,7 @@ if do == 11:
                         train_image_transform,
                         char_to_int_map,
                         int_to_char_map,
-                        100,
+                        4000,
                         text_label_max_length,
                         char_set,
                     )
@@ -261,15 +264,14 @@ if do == 11:
 
                     torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
 if do == 111:
-
-    model = simple_model()
+    cnn = simple_CNN()
     torchinfo.summary(
-        model,
+        cnn,
         input_size=(1, 1, 156, 44),
     )
-    adv_model = advanced_model()
+    adv_cnn = advanced_CNN()
     torchinfo.summary(
-        adv_model,
+        adv_cnn,
         input_size=(1, 1, 156, 44),
     )
 
