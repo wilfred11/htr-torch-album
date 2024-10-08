@@ -1,3 +1,4 @@
+import csv
 import os
 import shutil
 
@@ -55,7 +56,8 @@ from wakepy import keep
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
-do = 1111
+
+do = 1
 # aug = 0
 # aug = 1
 
@@ -63,7 +65,7 @@ text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
 
-models = ["gru", "lstm"]
+models = ["gru"]
 
 
 if do == 110:
@@ -88,22 +90,12 @@ if do == 110:
     )
     ds.save_pictures_and_transform()
     ds.get_label_length_counts()
-    """trl, tl = Aget_dataloaders(
-        test_image_transform,
-        train_image_transform,
-        char_to_int_map,
-        int_to_char_map,
-        10,
-        text_label_max_length,
-        char_set,
-        True,
-    )"""
 
     # dataloader_show(trl, number_of_images=10, int_to_char_map=int_to_char_map)
     # dataloader_show(tl, number_of_images=10, int_to_char_map=int_to_char_map)
 
 
-if do == 11:
+if do == 1:
     tfs = [
         "scores",
         "scores/adv",
@@ -118,173 +110,7 @@ if do == 11:
             shutil.rmtree(tf)
         os.mkdir(tf)
     # augs = [0, 1]
-    augs = [0]
-    advs = [1]
-
-    for model in models:
-        for adv in advs:
-            for aug in augs:
-                print("context: " + model + " adv: " + str(adv) + " aug: " + str(aug))
-                test_image_transform = A.Compose([])
-                if aug == 1:
-                    train_image_transform = A.Compose(
-                        [
-                            A.Rotate(limit=(-45.75, 45.75), p=1),
-                            A.OneOf(
-                                [
-                                    A.GaussNoise(p=1),
-                                    A.Blur(p=1),
-                                    A.RandomGamma(p=1),
-                                    A.GridDistortion(p=1),
-                                    # A.PixelDropout(p=1, drop_value=None),
-                                    A.Morphological(
-                                        p=1, scale=(4, 6), operation="dilation"
-                                    ),
-                                    A.Morphological(
-                                        p=1, scale=(4, 6), operation="erosion"
-                                    ),
-                                    A.RandomBrightnessContrast(p=1),
-                                    A.Affine(p=1),
-                                ],
-                                p=1,
-                            ),
-                            # A.InvertImg(p=1),
-                            # AResizeWithPad(h=44, w=156),
-                        ]
-                    )
-
-                if aug == 0:
-                    train_image_transform = A.Compose([])
-
-                with keep.running() as k:
-                    print("htr training and testing")
-                    read_words_generate_csv()
-
-                    char_to_int_map, int_to_char_map, char_set = read_maps()
-                    print("char_set", char_set)
-                    # char_to_int_map['_'] = '17'
-                    # int_to_char_map['15'] = '_'
-                    int_to_char_map["18"] = ""
-                    print("char_set", char_set)
-                    print("int to char map", int_to_char_map)
-                    print("char to int map", char_to_int_map)
-
-                    trl, tl = Aget_dataloaders(
-                        test_image_transform,
-                        train_image_transform,
-                        char_to_int_map,
-                        int_to_char_map,
-                        4000,
-                        text_label_max_length,
-                        char_set,
-                    )
-
-                    # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
-
-                    BLANK_LABEL = 17
-
-                    if model == "gru" and adv == 0:
-                        crnn = CRNN().to(device)
-                    elif model == "lstm" and adv == 0:
-                        crnn = CRNN_lstm().to(device)
-                    elif model == "rnn" and adv == 0:
-                        crnn = CRNN_rnn().to(device)
-                    elif model == "gru" and adv == 1:
-                        crnn = CRNN_adv().to(device)
-
-                    prefix = model + "_"
-
-                    criterion = nn.CTCLoss(
-                        blank=BLANK_LABEL, reduction="mean", zero_infinity=True
-                    )
-                    optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
-
-                    MAX_EPOCHS = 2500
-                    list_training_loss = []
-                    list_testing_loss = []
-                    list_testing_wer = []
-                    list_testing_cer = []
-                    list_length_correct = []
-
-                    for epoch in range(MAX_EPOCHS):
-                        training_loss = train(
-                            trl,
-                            crnn,
-                            optimizer,
-                            criterion,
-                            BLANK_LABEL,
-                            text_label_max_length,
-                        )
-                        testing_loss, wer, cer, length_correct = test(
-                            int_to_char_map,
-                            tl,
-                            crnn,
-                            optimizer,
-                            criterion,
-                            BLANK_LABEL,
-                            text_label_max_length,
-                        )
-
-                        list_training_loss.append(training_loss)
-                        list_testing_loss.append(testing_loss)
-                        list_testing_wer.append(wer)
-                        list_testing_cer.append(cer)
-                        list_length_correct.append(length_correct)
-
-                        if aug == 0 and adv == 0:
-                            dir = base_no_aug_score_dir()
-                        elif aug == 1 and adv == 0:
-                            dir = base_aug_score_dir()
-                        elif aug == 0 and adv == 1:
-                            dir = adv_no_aug_score_dir()
-                        elif aug == 1 and adv == 1:
-                            dir = adv_aug_score_dir()
-
-                        if epoch == 4:
-                            print("training loss", list_training_loss)
-                            with open(
-                                dir + prefix + "list_training_loss.pkl", "wb"
-                            ) as f1:
-                                pickle.dump(list_training_loss, f1)
-                            print("testing loss", list_testing_loss)
-                            with open(
-                                dir + prefix + "list_testing_loss.pkl", "wb"
-                            ) as f2:
-                                pickle.dump(list_testing_loss, f2)
-                            with open(
-                                dir + prefix + "list_testing_wer.pkl", "wb"
-                            ) as f3:
-                                pickle.dump(list_testing_wer, f3)
-                            with open(
-                                dir + prefix + "list_testing_cer.pkl", "wb"
-                            ) as f4:
-                                pickle.dump(list_testing_cer, f4)
-                            with open(
-                                dir + prefix + "list_testing_length_correct.pkl", "wb"
-                            ) as f5:
-                                pickle.dump(list_length_correct, f5)
-
-                            break
-
-                    torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
-
-
-if do == 1111:
-    tfs = [
-        "scores",
-        "scores/adv",
-        "scores/base",
-        "scores/base/aug",
-        "scores/adv/aug",
-        "scores/base/no_aug",
-        "scores/adv/no_aug",
-    ]
-    for tf in tfs:
-        if os.path.isdir(tf):
-            shutil.rmtree(tf)
-        os.mkdir(tf)
-    # augs = [0, 1]
-    augs = [0, 1]
+    augs = [1]
     advs = [1]
 
     read_words_generate_csv()
@@ -362,7 +188,7 @@ if do == 1111:
                         int_to_char_map,
                         char_set,
                         None,
-                        200,
+                        2000,
                     )
                     # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
@@ -398,7 +224,14 @@ if do == 1111:
                             BLANK_LABEL,
                             text_label_max_length,
                         )
-                        testing_loss, wer, cer, length_correct = test(
+                        (
+                            testing_loss,
+                            wer,
+                            cer,
+                            length_correct,
+                            list_words,
+                            list_hypotheses,
+                        ) = test(
                             int_to_char_map,
                             tl,
                             crnn,
@@ -422,6 +255,22 @@ if do == 1111:
                             dir = adv_no_aug_score_dir()
                         elif aug == 1 and adv == 1:
                             dir = adv_aug_score_dir()
+
+                        columns = ["word", "hypothesis"]
+                        with open(
+                            dir
+                            + prefix
+                            + "words_hypothesis_fold_"
+                            + str(fold)
+                            + ".csv",
+                            "w",
+                            newline="",
+                        ) as f:
+                            write = csv.writer(f)
+                            write.writerow(columns)
+                            for i in range(5):
+                                l = [list_words[i], list_hypotheses[i]]
+                                write.writerow(l)
 
                         if fold == 4:
                             print("training loss", list_training_loss)
@@ -493,18 +342,6 @@ if do == 3:
     )
     visualize_model(trl, crnn)
 
-
-if do == 45:
-    annotations_file = htr_ds_dir() + "train/" + "_annotations.csv"
-    image_folder = htr_ds_dir() + "train/"
-
-    ds = CustomObjectDetectionDataset(annotations_file, image_folder, 5)
-    train_loader = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=True)
-
-
-if do == 5:
-    image_transform = v2.Compose([v2.Grayscale()])
-    read_bbox_csv_show_image()
 
 if do == 6:
 

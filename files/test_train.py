@@ -103,6 +103,7 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
             y_test_as_string = int_to_string(y_test[i])
             list_of_hypotheses.append(prediction_as_string)
             list_of_words.append(y_test_as_string)
+
             # print(prediction_as_string)
             # print(y_test_as_string)
             if prediction_as_string == y_test_as_string:
@@ -148,7 +149,7 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
     print("wer:", wer)
     print("cer:", cer)
     lolc = dict(sorted(list_of_lengths_and_correctness.items()))
-    print("length and correctness: ", lolc)
+    # print("length and correctness: ", lolc)
     print("TEST correct: ", correct, "/", total, " P:", ratio)
 
-    return total_loss / num_batches, wer, cer, lolc
+    return total_loss / num_batches, wer, cer, lolc, list_of_words, list_of_hypotheses
