@@ -196,7 +196,7 @@ if do == 1:
                         int_to_char_map,
                         char_set,
                         None,
-                        2000,
+                        14000,
                     )
                     # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
