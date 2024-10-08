@@ -16,17 +16,12 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
 
         batch_size = x_train.shape[0]
         crnn.reset_hidden(batch_size)
-        # print(x_train.shape)
-        # print(x_train)
-        # print(y_train)
         x_train = x_train.view(x_train.shape[0], 1, x_train.shape[2], x_train.shape[3])
 
         optimizer.zero_grad()
 
         y_pred = crnn(x_train)
         y_pred = y_pred.permute(1, 0, 2)
-        # print('ypred.shp:', y_pred.shape)
-        # print('y_train.shp:',y_train.shape)
 
         input_lengths = torch.IntTensor(batch_size).fill_(crnn.postconv_width)
         target_lengths = torch.IntTensor([len(t) for t in y_train])
@@ -37,14 +32,11 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
         optimizer.step()
 
         _, max_index = torch.max(y_pred, dim=2)
-        # print('max_index.shp:', max_index.shape)
         counter = counter + 1
         # print('train counter:', counter)
         for i in range(batch_size):
 
             raw_prediction = list(max_index[:, i].numpy())
-            # print('raw_prediction:', raw_prediction)
-            # print('group by:', groupby(raw_prediction))
             prediction = torch.IntTensor(
                 [c for c, _ in groupby(raw_prediction) if c != blank_label]
             )
@@ -52,9 +44,6 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
             sz = len(prediction)
             for x in range(num_chars - sz):
                 prediction = torch.cat((prediction, torch.IntTensor([18])), 0)
-
-            # print('prediction:', prediction)
-            # print('y_train:', y_train[i])
 
             if len(prediction) == len(y_train[i]) and torch.all(
                 prediction.eq(y_train[i])

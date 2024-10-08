@@ -63,7 +63,7 @@ text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
 
-models = ["gru"]
+models = ["gru", "lstm"]
 
 
 if do == 110:
@@ -284,13 +284,25 @@ if do == 1111:
             shutil.rmtree(tf)
         os.mkdir(tf)
     # augs = [0, 1]
-    augs = [0]
+    augs = [0, 1]
     advs = [1]
+
+    read_words_generate_csv()
+
+    char_to_int_map, int_to_char_map, char_set = read_maps()
+    print("char_set", char_set)
+    int_to_char_map["18"] = ""
+    print("char_set", char_set)
+    print("int to char map", int_to_char_map)
+    print("char to int map", char_to_int_map)
+
+    BLANK_LABEL = 17
 
     for model in models:
         for adv in advs:
             for aug in augs:
                 print("context: " + model + " adv: " + str(adv) + " aug: " + str(aug))
+                print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
                 test_image_transform = A.Compose([])
                 if aug == 1:
                     train_image_transform = A.Compose(
@@ -312,7 +324,7 @@ if do == 1111:
                                     A.RandomBrightnessContrast(p=1),
                                     A.Affine(p=1),
                                 ],
-                                p=1,
+                                p=0.50,
                             ),
                             # A.InvertImg(p=1),
                             # AResizeWithPad(h=44, w=156),
@@ -324,18 +336,6 @@ if do == 1111:
 
                 with keep.running() as k:
                     print("htr training and testing")
-                    read_words_generate_csv()
-
-                    char_to_int_map, int_to_char_map, char_set = read_maps()
-                    print("char_set", char_set)
-                    # char_to_int_map['_'] = '17'
-                    # int_to_char_map['15'] = '_'
-                    int_to_char_map["18"] = ""
-                    print("char_set", char_set)
-                    print("int to char map", int_to_char_map)
-                    print("char to int map", char_to_int_map)
-
-                    BLANK_LABEL = 17
 
                     if model == "gru" and adv == 0:
                         crnn = CRNN().to(device)
@@ -362,7 +362,7 @@ if do == 1111:
                         int_to_char_map,
                         char_set,
                         None,
-                        8000,
+                        200,
                     )
                     # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
@@ -383,8 +383,6 @@ if do == 1111:
                         )
 
                         train_data, test_data = data_handler.get_splits()
-                        print("length traindata:", len(train_data))
-                        print("length testdata:", len(test_data))
 
                         trl = torch.utils.data.DataLoader(
                             train_data, batch_size=4, shuffle=False
