@@ -177,7 +177,15 @@ if do == 1:
                     criterion = nn.CTCLoss(
                         blank=BLANK_LABEL, reduction="mean", zero_infinity=True
                     )
-                    optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
+                    # optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
+                    optimizer = torch.optim.Adam(
+                        params=crnn.parameters(),
+                        lr=0.001,
+                        betas=(0.9, 0.999),
+                        eps=1e-08,
+                        weight_decay=0,
+                        amsgrad=False,
+                    )
 
                     MAX_EPOCHS = 2500
 
