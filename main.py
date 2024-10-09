@@ -1,6 +1,7 @@
 import csv
 import os
 import shutil
+from collections import Counter
 
 import torch.nn as nn
 import pickle
@@ -38,6 +39,7 @@ from files.model import (
     advanced_model,
     simple_CNN,
     advanced_CNN,
+    Attention,
 )
 from files.test_train import train, test
 from files.functions import (
@@ -57,7 +59,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 1
+do = 111
 # aug = 0
 # aug = 1
 
@@ -65,8 +67,8 @@ text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
 
-models = ["gru"]
-
+# models = ["gru"]
+models = ["rnn"]
 
 if do == 110:
     print("saving images and transforms")
@@ -111,12 +113,11 @@ if do == 1:
         os.mkdir(tf)
     # augs = [0, 1]
     augs = [1]
-    advs = [1]
+    advs = [0]
 
     read_words_generate_csv()
 
     char_to_int_map, int_to_char_map, char_set = read_maps()
-    print("char_set", char_set)
     int_to_char_map["18"] = ""
     print("char_set", char_set)
     print("int to char map", int_to_char_map)
@@ -196,7 +197,7 @@ if do == 1:
                         int_to_char_map,
                         char_set,
                         None,
-                        14000,
+                        1000,
                     )
                     # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
@@ -205,6 +206,7 @@ if do == 1:
                     list_testing_wer = []
                     list_testing_cer = []
                     list_length_correct = []
+                    trained_on_words = []
 
                     for fold in range(5):
 
@@ -224,7 +226,9 @@ if do == 1:
                         tl = torch.utils.data.DataLoader(
                             test_data, batch_size=1, shuffle=False
                         )
-                        training_loss = train(
+                        training_loss, trained_on_words = train(
+                            trained_on_words,
+                            int_to_char_map,
                             trl,
                             crnn,
                             optimizer,
@@ -276,7 +280,7 @@ if do == 1:
                         ) as f:
                             write = csv.writer(f)
                             write.writerow(columns)
-                            for i in range(5):
+                            for i in range(len(list_words)):
                                 l = [list_words[i], list_hypotheses[i]]
                                 write.writerow(l)
 
@@ -305,6 +309,15 @@ if do == 1:
                             ) as f5:
                                 pickle.dump(list_length_correct, f5)
 
+                            trained_on_words_count = dict(Counter(trained_on_words))
+                            with open(
+                                dir + prefix + "trained_on_words_count.csv",
+                                "w",
+                                newline="",
+                            ) as f6:
+                                w = csv.writer(f6)
+                                w.writerows(trained_on_words_count.items())
+
                             break
 
                     torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
@@ -319,6 +332,13 @@ if do == 111:
         adv_cnn,
         input_size=(1, 1, 156, 44),
     )
+
+    attention = Attention(128)
+    torchinfo.summary(
+        attention,
+        input_size=(35, 128),
+    )
+
 
 if do == 2:
     print("visualize featuremap")

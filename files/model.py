@@ -190,6 +190,18 @@ def simple_CNN():
     return simple
 
 
+class Attention(nn.Module):
+    def __init__(self, hidden_dim):
+        super(Attention, self).__init__()
+        self.attention = nn.Linear(hidden_dim, 1)
+
+    def forward(self, hidden_states):
+        scores = self.attention(hidden_states)
+        attention_weights = torch.softmax(scores, dim=1)
+        context_vector = torch.sum(attention_weights * hidden_states, dim=1)
+        return context_vector
+
+
 class CRNN_adv(nn.Module):
 
     def __init__(self):
@@ -237,6 +249,8 @@ class CRNN_adv(nn.Module):
         out, gru_h = self.gru(out, self.gru_h)
         # print('gru_h.shp:',gru_h.shape)
         self.gru_h = gru_h.detach()
+        # print(gru_h.shape)
+        # print(out.shape)
         out = torch.stack(
             [F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])]
         )
@@ -406,6 +420,9 @@ class CRNN_rnn(nn.Module):
         out = out.reshape(batch_size, -1, self.rnn_input_size)
 
         out, rnn_h = self.rnn(out, self.rnn_h)
+        # print(rnn_h.shape)
+        print(out.shape)
+
         self.rnn_h = rnn_h.detach()
         out = torch.stack(
             [F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])]

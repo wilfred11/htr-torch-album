@@ -5,7 +5,17 @@ from itertools import groupby
 from files.transform import IntToText, TextToInt, IntToString
 
 
-def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
+def train(
+    trained_on_words,
+    int_to_char_map,
+    train_loader,
+    crnn,
+    optimizer,
+    criterion,
+    blank_label,
+    num_chars,
+):
+    int_to_string = IntToString(int_to_char_map)
     correct = 0
     total = 0
     total_loss = 0
@@ -35,20 +45,27 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
         counter = counter + 1
         # print('train counter:', counter)
         for i in range(batch_size):
-
             raw_prediction = list(max_index[:, i].numpy())
             prediction = torch.IntTensor(
                 [c for c, _ in groupby(raw_prediction) if c != blank_label]
             )
+            prediction_as_string = int_to_string(prediction)
+
             # print('prediction:', prediction)
             sz = len(prediction)
             for x in range(num_chars - sz):
                 prediction = torch.cat((prediction, torch.IntTensor([18])), 0)
+                # print(prediction)
 
             if len(prediction) == len(y_train[i]) and torch.all(
                 prediction.eq(y_train[i])
             ):
                 correct += 1
+
+            y_train__as_string = int_to_string(y_train[i])
+            # print(y_train__as_string)
+            trained_on_words.append(y_train__as_string)
+
             total += 1
 
         num_batches += 1
@@ -56,7 +73,7 @@ def train(train_loader, crnn, optimizer, criterion, blank_label, num_chars):
     ratio = correct / total
     print("TRAIN correct: ", correct, "/", total, " P:", ratio)
 
-    return total_loss / num_batches
+    return total_loss / num_batches, trained_on_words
 
 
 def int_tensor_to_string(int_to_char_map, int_tensor):
@@ -83,7 +100,9 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
         x_test = x_test.view(x_test.shape[0], 1, x_test.shape[2], x_test.shape[3])
 
         y_pred = crnn(x_test)
+        # print(y_pred)
         y_pred = y_pred.permute(1, 0, 2)
+        # print(y_pred)
 
         input_lengths = torch.IntTensor(batch_size).fill_(crnn.postconv_width)
         target_lengths = torch.IntTensor([len(t) for t in y_test])
