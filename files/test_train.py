@@ -5,17 +5,8 @@ from itertools import groupby
 from files.transform import IntToText, TextToInt, IntToString
 
 
-def train(
-    trained_on_words,
-    int_to_char_map,
-    train_loader,
-    crnn,
-    optimizer,
-    criterion,
-    blank_label,
-    num_chars,
-):
-    int_to_string = IntToString(int_to_char_map)
+def train(trained_on_words, train_loader, crnn, optimizer, criterion, config):
+    int_to_string = IntToString(config.int_to_char_map)
     correct = 0
     total = 0
     total_loss = 0
@@ -47,14 +38,16 @@ def train(
         for i in range(batch_size):
             raw_prediction = list(max_index[:, i].numpy())
             prediction = torch.IntTensor(
-                [c for c, _ in groupby(raw_prediction) if c != blank_label]
+                [c for c, _ in groupby(raw_prediction) if c != config.blank_label]
             )
             prediction_as_string = int_to_string(prediction)
 
             # print('prediction:', prediction)
             sz = len(prediction)
-            for x in range(num_chars - sz):
-                prediction = torch.cat((prediction, torch.IntTensor([18])), 0)
+            for x in range(config.text_label_max_length - sz):
+                prediction = torch.cat(
+                    (prediction, torch.IntTensor([config.empty_label])), 0
+                )
                 # print(prediction)
 
             if len(prediction) == len(y_train[i]) and torch.all(
@@ -83,8 +76,8 @@ def int_tensor_to_string(int_to_char_map, int_tensor):
     return string
 
 
-def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_chars):
-    int_to_string = IntToString(int_to_char_map)
+def test(loader, crnn, optimizer, criterion, config):
+    int_to_string = IntToString(config.int_to_char_map)
     list_of_words = list()
     list_of_hypotheses = list()
     list_of_lengths_and_correctness = {}
@@ -116,7 +109,7 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
         for i in range(batch_size):
             raw_prediction = list(max_index[:, i].numpy())
             prediction = torch.IntTensor(
-                [c for c, _ in groupby(raw_prediction) if c != blank_label]
+                [c for c, _ in groupby(raw_prediction) if c != config.blank_label]
             )
             prediction_as_string = int_to_string(prediction)
             y_test_as_string = int_to_string(y_test[i])
@@ -151,8 +144,10 @@ def test(int_to_char_map, loader, crnn, optimizer, criterion, blank_label, num_c
                 )
 
             sz = len(prediction)
-            for x in range(num_chars - sz):
-                prediction = torch.cat((prediction, torch.IntTensor([18])), 0)
+            for x in range(config.text_label_max_length - sz):
+                prediction = torch.cat(
+                    (prediction, torch.IntTensor([config.empty_label])), 0
+                )
 
             if len(prediction) == len(y_test[i]) and torch.all(
                 prediction.eq(y_test[i])

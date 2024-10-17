@@ -17,6 +17,8 @@ from torch.nn import functional as F1
 from torch.utils.data import Dataset, Subset
 from torchvision.io import read_image
 from torchvision.transforms import v2
+
+from files import config
 from files.functions import htr_ds_dir, generated_data_dir
 from sklearn.model_selection import KFold
 import albumentations as A
@@ -133,10 +135,7 @@ class HTRDataset(Dataset):
     def __init__(
         self,
         file_name,
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
+        config,
         image_transform,
         num_of_rows,
     ):
@@ -146,12 +145,14 @@ class HTRDataset(Dataset):
         with open(generated_data_dir() + file_name, newline="") as file:
             reader = csv.reader(file)
             next(reader)
-            text_to_int = TextToInt(char_to_int_map)
-            fill_array = FillArray(length=text_label_max_length)
+            text_to_int = TextToInt(config.char_to_int_map)
+            fill_array = FillArray(
+                length=config.text_label_max_length, blank_label=config.empty_label
+            )
             for row in reader:
-                if len(row[1]) > text_label_max_length:
+                if len(row[1]) > config.text_label_max_length:
                     continue
-                if not all_chars_in_set(row[1], char_set):
+                if not all_chars_in_set(row[1], config.char_set):
                     continue
 
                 lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
@@ -167,7 +168,7 @@ class HTRDataset(Dataset):
                 counter = counter + 1
                 if counter == num_of_rows:
                     self.labels = self.labels.reshape(
-                        [num_of_rows, text_label_max_length]
+                        [num_of_rows, config.text_label_max_length]
                     )
                     break
         print("size images:", sys.getsizeof(self.images))
@@ -183,53 +184,57 @@ class AHTRDataset(Dataset):
     def __init__(
         self,
         file_name,
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
+        config,
         image_transform,
         num_of_rows,
     ):
         self.labels = torch.IntTensor()
         self.img_names = []
         self.label_lengths = []
-        # self.images = torch.FloatTensor()
-        # self.np_images = np.array()
         list_of_images = []
-        # self.images = np.zeros((num_of_rows,), dtype=np.int64)
         counter = 0
         with open(generated_data_dir() + file_name, newline="") as file:
             reader = csv.reader(file)
             next(reader)
-            text_to_int = TextToInt(char_to_int_map)
-            fill_array = FillArray(length=text_label_max_length)
+            text_to_int = TextToInt(config.char_to_int_map)
+            fill_array = FillArray(
+                length=config.text_label_max_length, empty_label=config.empty_label
+            )
             for row in reader:
-                if len(row[1]) > text_label_max_length:
-                    continue
-                if not all_chars_in_set(row[1], char_set):
-                    continue
+                try:
+                    if len(row[1]) > config.text_label_max_length:
+                        continue
+                    if not all_chars_in_set(row[1], config.char_set):
+                        continue
 
-                lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
-                img = read_image(row[0])
+                    lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
+                    img = read_image(row[0])
 
-                transform = v2.Grayscale()
-                img = transform(img)
-                img = torchvision.transforms.functional.invert(img)
-                t = ResizeWithPad(w=156, h=44)
-                img = t(img)
+                    transform = v2.Grayscale()
+                    img = transform(img)
+                    img = torchvision.transforms.functional.invert(img)
+                    t = ResizeWithPad(w=156, h=44)
+                    img = t(img)
 
-                if img is None or lbl_tensor is None:
-                    continue
+                    if img is None or lbl_tensor is None:
+                        continue
 
-                list_of_images.append(img)
-                self.img_names.append(row[0])
-                self.labels = torch.cat((self.labels, lbl_tensor), 0)
-                self.label_lengths.append(len(row[1]))
+                    list_of_images.append(img)
+                    self.img_names.append(row[0])
+                    self.labels = torch.cat((self.labels, lbl_tensor), 0)
+                    self.label_lengths.append(len(row[1]))
 
-                counter = counter + 1
+                    counter = counter + 1
+                    if counter == 17542:
+                        print("image : ", row[0])
+                        print("label : ", row[1])
+                    # print("counter: ", str(counter))
+                except:
+                    print("error: ", str(counter))
+
                 if counter == num_of_rows:
                     self.labels = self.labels.reshape(
-                        [num_of_rows, text_label_max_length]
+                        [num_of_rows, config.text_label_max_length]
                     )
                     # self.np_images =
                     break
@@ -244,6 +249,75 @@ class AHTRDataset(Dataset):
 
     def get_label_length_counts(self):
         return Counter(self.label_lengths)
+
+
+class TransformedDatasetEpochIterator:
+    def __init__(
+        self,
+        base_dataset,
+        current_epoch,
+        num_epoch,
+        test_transform=A.Compose,
+        train_transform=A.Compose,
+        seed=0,
+    ):
+        self.base = base_dataset
+        self.train_transform = train_transform
+        self.test_transform = test_transform
+        self.num_epoch = num_epoch
+        self.current_epoch = current_epoch
+        random.seed(seed)
+        self.random_order = random.sample(
+            range(0, len(base_dataset)), len(base_dataset)
+        )
+        self.train_val_split = [0.8, 0.2]
+        self.length = len(base_dataset)
+
+    def get_random_order(self):
+        return self.random_order
+
+    def get_epoch_ids(self):
+        items_per_epoch = self.length // self.num_epoch
+        num_items_gone = (self.current_epoch) * items_per_epoch
+
+        epoch_idx_list = self.random_order[
+            (self.current_epoch * items_per_epoch) : (
+                self.current_epoch * items_per_epoch
+            )
+            + items_per_epoch
+        ]
+        train_size = int(len(epoch_idx_list) * self.train_val_split[0])
+        # print("train size: ", str(train_size))
+        val_size = len(epoch_idx_list) - train_size
+        epoch_idx_train_list = epoch_idx_list[0:train_size]
+        epoch_idx_val_list = epoch_idx_list[train_size:]
+        return epoch_idx_train_list, epoch_idx_val_list
+
+    def get_splits(self):
+        """
+        Splits the dataset into training and validation subsets.
+
+        Returns:
+            tuple: A tuple containing the training and validation subsets.
+        """
+
+        # fold_data = list(self.kf.split(self.base))
+        # train_indices, val_indices = fold_data[self.current_fold]
+        train_ids, val_ids = self.get_epoch_ids()
+        train_data = self._get_train_subset(train_ids)
+        val_data = self._get_test_subset(val_ids)
+
+        return train_data, val_data
+
+    def _get_train_subset(self, indices):
+        return TransformedDataset(
+            Subset(self.base, indices), transforms=self.train_transform
+        )
+
+    def _get_test_subset(self, indices):
+        return TransformedDataset(
+            Subset(self.base, indices), transforms=self.test_transform
+        )
 
 
 class KFoldTransformedDatasetIterator:

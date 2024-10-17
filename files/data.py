@@ -17,7 +17,7 @@ from files.dataset import (
     AHTRDataset,
     TransformedDatasetReplay,
 )
-from files.transform import TextToInt, FillArray, IntToText
+from files.transform import TextToInt, FillArray, IntToText, replay_transform
 from files.functions import (
     ascii_dir,
     iam_dir,
@@ -98,129 +98,16 @@ def get_dataloaders(
     return train_loader, test_loader
 
 
-def get_kfold_dataloaders(
-    test_image_transform,
-    train_image_transform,
-    char_to_int_map,
-    int_to_char_map,
-    num_of_rows,
-    text_label_max_length,
-    char_set,
-    # same_sets=False,
-):
-
-    seq_dataset = AHTRDataset(
-        "file_names-labels.csv",
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
-        None,
-        num_of_rows,
-    )
-
-    lengths = [int(len(seq_dataset) * 0.8), int(len(seq_dataset) * 0.2)]
-    train_subset, test_subset = torch.utils.data.random_split(seq_dataset, lengths)
-
-    train_set = TransformedDataset(train_subset, transforms=train_image_transform)
-
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=False)
-    test_set = TransformedDataset(test_subset, transforms=test_image_transform)
-
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
-
-    return train_loader, test_loader
-
-
-def get_kfold_dataset(
-    test_image_transform,
-    train_image_transform,
-    char_to_int_map,
-    int_to_char_map,
-    num_of_rows,
-    text_label_max_length,
-    char_set,
-):
-    seq_dataset = AHTRDataset(
-        "file_names-labels.csv",
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
-        None,
-        num_of_rows,
-    )
-
-
-def Aget_dataloaders(
-    test_image_transform,
-    train_image_transform,
-    char_to_int_map,
-    int_to_char_map,
-    num_of_rows,
-    text_label_max_length,
-    char_set,
-    # same_sets=False,
-):
-
-    seq_dataset = AHTRDataset(
-        "file_names-labels.csv",
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
-        None,
-        num_of_rows,
-    )
-
-    lengths = [int(len(seq_dataset) * 0.8), int(len(seq_dataset) * 0.2)]
-    train_subset, test_subset = torch.utils.data.random_split(seq_dataset, lengths)
-
-    train_set = TransformedDataset(train_subset, transforms=train_image_transform)
-
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=False)
-    test_set = TransformedDataset(test_subset, transforms=test_image_transform)
-
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
-
-    return train_loader, test_loader
-
-
 def get_replay_dataset(
-    text_label_max_length,
-    char_to_int_map,
-    int_to_char_map,
-    char_set,
+    config,
     num_of_rows=1000,
 ):
     # test_image_transform = A.Compose([])
-    train_image_transform = A.ReplayCompose(
-        [
-            A.Rotate(limit=(-45.75, 45.75), p=1, always_apply=True),
-            A.OneOf(
-                [
-                    A.GaussNoise(p=1),
-                    A.Blur(p=1),
-                    A.RandomGamma(p=1),
-                    A.GridDistortion(p=1),
-                    # A.PixelDropout(p=1, drop_value=None),
-                    A.Morphological(p=1, scale=(4, 6), operation="dilation"),
-                    A.Morphological(p=1, scale=(4, 6), operation="erosion"),
-                    A.RandomBrightnessContrast(p=1),
-                    A.Affine(p=1),
-                ],
-                p=1,
-            ),
-            # A.InvertImg(p=1),
-            # AResizeWithPad(h=44, w=156),
-        ]
-    )
+    train_image_transform = replay_transform()
+    # ))
     dataset = AHTRDataset(
         "file_names-labels.csv",
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
+        config,
         None,
         num_of_rows,
     )
@@ -264,7 +151,7 @@ def read_maps():
     char_to_int_map = {}
     int_to_char_map = {}
     char_set = set()
-    with open("char_map_15.csv", "r") as file:
+    with open("char_map_a_z.csv", "r") as file:
         csv_reader = csv.reader(
             file,
             delimiter=";",

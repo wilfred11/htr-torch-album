@@ -1,5 +1,6 @@
 import csv
 import os
+import random
 import shutil
 from collections import Counter
 
@@ -8,25 +9,27 @@ import pickle
 import matplotlib.pyplot as plt
 from torchvision.transforms import v2
 from torch import nn
+
 import torch.utils.data as data_utils
 import albumentations as A
 import torchinfo
 
+from files.config import Config
 from files.data import (
     read_words_generate_csv,
     read_bbox_csv_show_image,
     get_dataloaders,
     dataloader_show,
     read_maps,
-    Aget_dataloaders,
     get_replay_dataset,
 )
 from files.dataset import (
     CustomObjectDetectionDataset,
     AHTRDataset,
     KFoldTransformedDatasetIterator,
+    TransformedDatasetEpochIterator,
 )
-from files.transform import ResizeWithPad, AResizeWithPad
+from files.transform import ResizeWithPad, AResizeWithPad, train_transform
 import torch
 from files.model import (
     CRNN,
@@ -59,7 +62,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 111
+do = 1
 # aug = 0
 # aug = 1
 
@@ -67,34 +70,21 @@ text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
 
+random_seed = 1
+random.seed(random_seed)
+
 # models = ["gru"]
-models = ["rnn"]
+models = ["gru"]
 
 if do == 110:
     print("saving images and transforms")
-
-    # train_image_transform = A.Compose([])
-
     read_words_generate_csv()
 
-    char_to_int_map, int_to_char_map, char_set = read_maps()
-    print("char_set", char_set)
-    print("int_to_char_map", int_to_char_map)
-    # char_to_int_map['_'] = '15'
-    # int_to_char_map['15'] = '_'
-    int_to_char_map["18"] = ""
+    config = Config("char_map_15.csv", 10)
 
-    ds = get_replay_dataset(
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
-    )
+    ds = get_replay_dataset(config)
     ds.save_pictures_and_transform()
     ds.get_label_length_counts()
-
-    # dataloader_show(trl, number_of_images=10, int_to_char_map=int_to_char_map)
-    # dataloader_show(tl, number_of_images=10, int_to_char_map=int_to_char_map)
 
 
 if do == 1:
@@ -117,13 +107,14 @@ if do == 1:
 
     read_words_generate_csv()
 
-    char_to_int_map, int_to_char_map, char_set = read_maps()
-    int_to_char_map["18"] = ""
-    print("char_set", char_set)
-    print("int to char map", int_to_char_map)
-    print("char to int map", char_to_int_map)
+    config = Config("char_map_15.csv", 10)
 
-    BLANK_LABEL = 17
+    print("num classes: ", config.num_classes)
+    print("blank_label: ", config.blank_label)
+    print("empty_label: ", config.empty_label)
+    print("char_set: ", config.char_set)
+    print("int to char map: ", config.int_to_char_map)
+    print("char to int map: ", config.char_to_int_map)
 
     for model in models:
         for adv in advs:
@@ -132,31 +123,7 @@ if do == 1:
                 print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
                 test_image_transform = A.Compose([])
                 if aug == 1:
-                    train_image_transform = A.Compose(
-                        [
-                            A.Rotate(limit=(-45.75, 45.75), p=1),
-                            A.OneOf(
-                                [
-                                    A.GaussNoise(p=1),
-                                    A.Blur(p=1),
-                                    A.RandomGamma(p=1),
-                                    A.GridDistortion(p=1),
-                                    # A.PixelDropout(p=1, drop_value=None),
-                                    A.Morphological(
-                                        p=1, scale=(4, 6), operation="dilation"
-                                    ),
-                                    A.Morphological(
-                                        p=1, scale=(4, 6), operation="erosion"
-                                    ),
-                                    A.RandomBrightnessContrast(p=1),
-                                    A.Affine(p=1),
-                                ],
-                                p=0.50,
-                            ),
-                            # A.InvertImg(p=1),
-                            # AResizeWithPad(h=44, w=156),
-                        ]
-                    )
+                    train_image_transform = train_transform()
 
                 if aug == 0:
                     train_image_transform = A.Compose([])
@@ -165,18 +132,18 @@ if do == 1:
                     print("htr training and testing")
 
                     if model == "gru" and adv == 0:
-                        crnn = CRNN().to(device)
+                        crnn = CRNN(config.num_classes).to(device)
                     elif model == "lstm" and adv == 0:
-                        crnn = CRNN_lstm().to(device)
+                        crnn = CRNN_lstm(config.num_classes).to(device)
                     elif model == "rnn" and adv == 0:
-                        crnn = CRNN_rnn().to(device)
+                        crnn = CRNN_rnn(config.num_classes).to(device)
                     elif model == "gru" and adv == 1:
-                        crnn = CRNN_adv().to(device)
+                        crnn = CRNN_adv(config.num_classes).to(device)
 
                     prefix = model + "_"
 
                     criterion = nn.CTCLoss(
-                        blank=BLANK_LABEL, reduction="mean", zero_infinity=True
+                        blank=config.blank_label, reduction="mean", zero_infinity=True
                     )
                     # optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
                     optimizer = torch.optim.Adam(
@@ -188,17 +155,15 @@ if do == 1:
                         amsgrad=False,
                     )
 
-                    MAX_EPOCHS = 2500
+                    # MAX_EPOCHS = 2500
 
                     dataset = AHTRDataset(
                         "file_names-labels.csv",
-                        text_label_max_length,
-                        char_to_int_map,
-                        int_to_char_map,
-                        char_set,
+                        config,
                         None,
-                        1000,
+                        16000,
                     )
+                    print("length ds: ", str(len(dataset)))
                     # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
                     list_training_loss = []
@@ -208,16 +173,15 @@ if do == 1:
                     list_length_correct = []
                     trained_on_words = []
 
-                    for fold in range(5):
-
-                        data_handler = KFoldTransformedDatasetIterator(
+                    for epoch in range(config.num_epoch):
+                        data_handler = TransformedDatasetEpochIterator(
                             dataset,
-                            current_fold=fold,
-                            num_fold=5,
+                            current_epoch=epoch,
+                            num_epoch=config.num_epoch,
                             train_transform=train_image_transform,
                             test_transform=test_image_transform,
+                            seed=random_seed,
                         )
-
                         train_data, test_data = data_handler.get_splits()
 
                         trl = torch.utils.data.DataLoader(
@@ -227,14 +191,7 @@ if do == 1:
                             test_data, batch_size=1, shuffle=False
                         )
                         training_loss, trained_on_words = train(
-                            trained_on_words,
-                            int_to_char_map,
-                            trl,
-                            crnn,
-                            optimizer,
-                            criterion,
-                            BLANK_LABEL,
-                            text_label_max_length,
+                            trained_on_words, trl, crnn, optimizer, criterion, config
                         )
                         (
                             testing_loss,
@@ -243,15 +200,7 @@ if do == 1:
                             length_correct,
                             list_words,
                             list_hypotheses,
-                        ) = test(
-                            int_to_char_map,
-                            tl,
-                            crnn,
-                            optimizer,
-                            criterion,
-                            BLANK_LABEL,
-                            text_label_max_length,
-                        )
+                        ) = test(tl, crnn, optimizer, criterion, config)
 
                         list_training_loss.append(training_loss)
                         list_testing_loss.append(testing_loss)
@@ -272,8 +221,8 @@ if do == 1:
                         with open(
                             dir
                             + prefix
-                            + "words_hypothesis_fold_"
-                            + str(fold)
+                            + "words_hypothesis_epoch_"
+                            + str(epoch)
                             + ".csv",
                             "w",
                             newline="",
@@ -284,7 +233,7 @@ if do == 1:
                                 l = [list_words[i], list_hypotheses[i]]
                                 write.writerow(l)
 
-                        if fold == 4:
+                        if epoch == 4:
                             print("training loss", list_training_loss)
                             with open(
                                 dir + prefix + "list_training_loss.pkl", "wb"
@@ -310,6 +259,14 @@ if do == 1:
                                 pickle.dump(list_length_correct, f5)
 
                             trained_on_words_count = dict(Counter(trained_on_words))
+
+                            trained_on_words_count = dict(
+                                sorted(
+                                    trained_on_words_count.items(),
+                                    key=lambda item: len(item[0]),
+                                )
+                            )
+
                             with open(
                                 dir + prefix + "trained_on_words_count.csv",
                                 "w",

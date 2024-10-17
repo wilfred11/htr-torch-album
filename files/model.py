@@ -204,10 +204,10 @@ class Attention(nn.Module):
 
 class CRNN_adv(nn.Module):
 
-    def __init__(self):
+    def __init__(self, num_classes):
         super(CRNN_adv, self).__init__()
 
-        self.num_classes = 18 + 1
+        self.num_classes = num_classes + 1
         self.image_H = 44
 
         self.cnn = advanced_CNN()
@@ -268,10 +268,10 @@ class CRNN_adv(nn.Module):
 
 class CRNN(nn.Module):
 
-    def __init__(self):
+    def __init__(self, num_classes):
         super(CRNN, self).__init__()
 
-        self.num_classes = 18 + 1
+        self.num_classes = num_classes + 1
         self.image_H = 44
 
         self.cnn = simple_CNN()
@@ -328,10 +328,10 @@ class CRNN(nn.Module):
 
 class CRNN_lstm(nn.Module):
 
-    def __init__(self):
+    def __init__(self, num_classes):
         super(CRNN_lstm, self).__init__()
 
-        self.num_classes = 18 + 1
+        self.num_classes = num_classes + 1
         self.image_H = 44
 
         self.cnn = simple_CNN()
@@ -386,10 +386,10 @@ class CRNN_lstm(nn.Module):
 
 class CRNN_rnn(nn.Module):
 
-    def __init__(self):
+    def __init__(self, num_classes):
         super(CRNN_rnn, self).__init__()
 
-        self.num_classes = 18 + 1
+        self.num_classes = num_classes + 1
         self.image_H = 44
 
         self.cnn = simple_CNN()
@@ -421,7 +421,7 @@ class CRNN_rnn(nn.Module):
 
         out, rnn_h = self.rnn(out, self.rnn_h)
         # print(rnn_h.shape)
-        print(out.shape)
+        # print(out.shape)
 
         self.rnn_h = rnn_h.detach()
         out = torch.stack(

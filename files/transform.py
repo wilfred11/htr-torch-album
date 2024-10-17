@@ -1,6 +1,7 @@
 from albumentations import ImageOnlyTransform
 from torchvision.transforms import functional as F
 from torchvision.transforms.v2.functional import get_size
+import albumentations as A
 
 
 class TextToInt:
@@ -52,12 +53,13 @@ class IntToString:
 
 class FillArray:
 
-    def __init__(self, length):
+    def __init__(self, length, empty_label):
         self.length = length
+        self.empty_label = empty_label
 
     def __call__(self, array):
         for i in range(self.length - len(array)):
-            array.append(18)
+            array.append(self.empty_label)
 
         return array
 
@@ -124,3 +126,51 @@ class AResizeWithPad(ImageOnlyTransform):
 
         else:
             return F.resize(image, [self.h, self.w])
+
+
+def replay_transform():
+    return A.ReplayCompose(
+        [
+            A.Rotate(limit=(-45.75, 45.75), p=1),
+            A.OneOf(
+                [
+                    A.GaussNoise(p=1),
+                    A.Blur(p=1),
+                    A.RandomGamma(p=1),
+                    A.GridDistortion(p=1),
+                    # A.PixelDropout(p=1, drop_value=None),
+                    A.Morphological(p=1, scale=(4, 6), operation="dilation"),
+                    A.Morphological(p=1, scale=(4, 6), operation="erosion"),
+                    A.RandomBrightnessContrast(p=1),
+                    A.Affine(p=1),
+                ],
+                p=1,
+            ),
+            # A.InvertImg(p=1),
+            # AResizeWithPad(h=44, w=156),
+        ]
+    )
+
+
+def train_transform():
+    return A.Compose(
+        [
+            A.Rotate(limit=(-45.75, 45.75), p=1),
+            A.OneOf(
+                [
+                    A.GaussNoise(p=1),
+                    A.Blur(p=1),
+                    A.RandomGamma(p=1),
+                    A.GridDistortion(p=1),
+                    # A.PixelDropout(p=1, drop_value=None),
+                    A.Morphological(p=1, scale=(4, 6), operation="dilation"),
+                    A.Morphological(p=1, scale=(4, 6), operation="erosion"),
+                    A.RandomBrightnessContrast(p=1),
+                    A.Affine(p=1),
+                ],
+                p=0.25,
+            ),
+            # A.InvertImg(p=1),
+            # AResizeWithPad(h=44, w=156),
+        ]
+    )
