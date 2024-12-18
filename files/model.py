@@ -202,6 +202,18 @@ class Attention(nn.Module):
         return context_vector
 
 
+class BeamSearch(nn.Module):
+    def __init__(self):
+        super(BeamSearch, self).__init__()
+        pass
+
+    def forward(self, x):
+        values, indexes = torch.topk(x, 3)
+        print("values: ", values)
+        print("indexes: ", indexes)
+        return values, indexes
+
+
 class CRNN_adv(nn.Module):
 
     def __init__(self, num_classes):
@@ -311,9 +323,17 @@ class CRNN(nn.Module):
         out, gru_h = self.gru(out, self.gru_h)
         # print('gru_h.shp:',gru_h.shape)
         self.gru_h = gru_h.detach()
+        # print("out.shape: ", str(out.shape))
+        # print("test: ", F.softmax(self.fc(out[0])))
+        """print(
+            "stack shape :",
+            str(len([F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])])),
+        )"""
+        # print([F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])])
         out = torch.stack(
             [F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])]
         )
+        # print("out.shape stacked: ", str(out.shape))
         # print('final out.shp:', out.shape)
         return out
 
@@ -427,6 +447,7 @@ class CRNN_rnn(nn.Module):
         out = torch.stack(
             [F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])]
         )
+
         return out
 
     def reset_hidden(self, batch_size):

@@ -107,7 +107,7 @@ if do == 1:
 
     read_words_generate_csv()
 
-    config = Config("char_map_15.csv", 10)
+    config = Config("char_map_short.csv", 10)
 
     print("num classes: ", config.num_classes)
     print("blank_label: ", config.blank_label)
@@ -161,7 +161,7 @@ if do == 1:
                         "file_names-labels.csv",
                         config,
                         None,
-                        16000,
+                        5000,
                     )
                     print("length ds: ", str(len(dataset)))
                     # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)

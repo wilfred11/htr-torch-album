@@ -2,6 +2,7 @@ import jiwer
 import torch
 from itertools import groupby
 
+from files.model import BeamSearch
 from files.transform import IntToText, TextToInt, IntToString
 
 
@@ -93,7 +94,9 @@ def test(loader, crnn, optimizer, criterion, config):
         x_test = x_test.view(x_test.shape[0], 1, x_test.shape[2], x_test.shape[3])
 
         y_pred = crnn(x_test)
-        # print(y_pred)
+
+        print("y_pred: ", y_pred)
+        print("y_pred shape : ", y_pred.shape)
         y_pred = y_pred.permute(1, 0, 2)
         # print(y_pred)
 
@@ -106,8 +109,16 @@ def test(loader, crnn, optimizer, criterion, config):
 
         _, max_index = torch.max(y_pred, dim=2)
 
+        print("max_index:", max_index)
+        print("max_index len:", len(max_index))
+        bs = BeamSearch()
+        values, indexes = bs(y_pred)
+
+        print()
+
         for i in range(batch_size):
             raw_prediction = list(max_index[:, i].numpy())
+
             prediction = torch.IntTensor(
                 [c for c, _ in groupby(raw_prediction) if c != config.blank_label]
             )

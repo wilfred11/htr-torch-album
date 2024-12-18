@@ -147,7 +147,7 @@ class HTRDataset(Dataset):
             next(reader)
             text_to_int = TextToInt(config.char_to_int_map)
             fill_array = FillArray(
-                length=config.text_label_max_length, blank_label=config.empty_label
+                length=config.text_label_max_length, empty_label=config.empty_label
             )
             for row in reader:
                 if len(row[1]) > config.text_label_max_length:
