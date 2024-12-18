@@ -460,15 +460,17 @@ class CRNN_rnn(nn.Module):
 
 
 def visualize_model(loader, model):
-    for batch_id, (x_test, y_test) in enumerate(loader):
+    for batch_id, (x_test, y_test, _) in enumerate(loader):
         for j in range(len(x_test)):
+            # img = x_test[j].unsqueeze(0)
+            # img = img.unsqueeze(1)
             img = x_test[j].unsqueeze(0)
-            img = img.unsqueeze(1)
+            # img = im.unsqueeze(1)
+            h = img.type(torch.float32)
             model_history = tl.log_forward_pass(
-                model, img, layers_to_save="all", vis_opt="rolled"
+                model, h, layers_to_save="all", vis_opt="rolled"
             )
             print(model_history)
-
     os.system("pause")
 
 
@@ -495,14 +497,19 @@ def fdl_layer_plot(image, title, figsize=(16, 8)):
 
 
 def visualize_featuremap(crnn, loader, number):
-    for batch_id, (x_test, y_test) in enumerate(loader):
+    for batch_id, (x_test, y_test, _) in enumerate(loader):
+        # x_test = x_test.view(x_test.shape[0], 1, x_test.shape[2], x_test.shape[3])
+
         for j in range(len(x_test)):
-            plt.imshow(x_test[j], cmap="gray")
+            print(x_test[j].shape)
+            im = x_test[j].permute(1, 2, 0)
+            plt.imshow(im, cmap="gray")
             plt.show()
-            print("im_shp:", x_test[j].shape)
             img = x_test[j].unsqueeze(0)
-            img = img.unsqueeze(1)
-            out = crnn.simple_forward(img)
+            # img = im.unsqueeze(1)
+            h = img.type(torch.float32)
+            print(type(x_test[j]))
+            out = crnn.simple_forward(h)
             print("out.shp:", out.shape)
             conv_layer_plot(nrows=16, ncols=4, title="", image=out)
             number -= 1

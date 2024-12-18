@@ -4,9 +4,11 @@ import random
 import shutil
 from collections import Counter
 
+import numpy as np
 import torch.nn as nn
 import pickle
 import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 from torch import nn
 
@@ -62,7 +64,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 1
+do = 3
 # aug = 0
 # aug = 1
 
@@ -72,6 +74,7 @@ torch.manual_seed(1)
 
 random_seed = 1
 random.seed(random_seed)
+np.random.seed(1)
 
 # models = ["gru"]
 models = ["gru"]
@@ -125,6 +128,7 @@ if do == 1:
                 if aug == 1:
                     train_image_transform = train_transform()
 
+                    A.save(train_image_transform, "/scores/transform.json")
                 if aug == 0:
                     train_image_transform = A.Compose([])
 
@@ -299,33 +303,34 @@ if do == 111:
 
 if do == 2:
     print("visualize featuremap")
-    char_to_int_map, int_to_char_map, char_set = read_maps()
-    crnn = CRNN().to(device)
-    crnn.load_state_dict(torch.load(generated_data_dir() + "trained_reader"))
-    trl, _ = get_dataloaders(
-        image_transform,
-        char_to_int_map,
-        int_to_char_map,
-        5,
-        text_label_max_length,
-        char_set,
+    # char_to_int_map, int_to_char_map, char_set = read_maps()
+    config = Config("char_map_short.csv", 6)
+
+    dataset = AHTRDataset(
+        "file_names-labels.csv",
+        config,
+        None,
+        10,
     )
-    visualize_featuremap(crnn, trl, 1)
+    loader = DataLoader(dataset, shuffle=True, batch_size=2)
+    crnn = CRNN(num_classes=config.num_classes).to(device)
+    crnn.load_state_dict(torch.load("scores/base/aug/" + "gru_trained_reader"))
+    visualize_featuremap(crnn, loader, 1)
 
 if do == 3:
     print("visualize model")
-    char_to_int_map, int_to_char_map, char_set = read_maps()
-    crnn = CRNN().to(device)
-    crnn.load_state_dict(torch.load(generated_data_dir() + "trained_reader"))
-    trl, tl = get_dataloaders(
-        image_transform,
-        char_to_int_map,
-        int_to_char_map,
-        5,
-        text_label_max_length,
-        char_set,
+    config = Config("char_map_short.csv", 6)
+
+    dataset = AHTRDataset(
+        "file_names-labels.csv",
+        config,
+        None,
+        10,
     )
-    visualize_model(trl, crnn)
+    crnn = CRNN(num_classes=config.num_classes).to(device)
+    crnn.load_state_dict(torch.load("scores/base/aug/" + "gru_trained_reader"))
+    loader = DataLoader(dataset, shuffle=True, batch_size=2)
+    visualize_model(loader, crnn)
 
 
 if do == 6:
