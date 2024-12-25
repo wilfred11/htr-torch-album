@@ -371,10 +371,10 @@ class TransformedDataset(Dataset):
         x_original = torchvision.transforms.functional.to_pil_image(x_)
         fname = os.path.basename(n)
         fname_no_ext = Path(fname).stem
-        #x_original.save("test/" + fname)
+        x_original.save("test/" + fname)
         x_original_t = self.transforms(image=x_)
         x_original_t__ = torchvision.transforms.functional.to_pil_image(x_original_t["image"])
-        #x_original_t__.save("test/" + fname_no_ext +"_transf"+".png")
+        x_original_t__.save("test/" + fname_no_ext +"_transf"+".png")
         x_gray = v2.functional.rgb_to_grayscale(x_original_t__, num_output_channels=1)
         t=v2.ToTensor()
         x_gray=t(x_gray)

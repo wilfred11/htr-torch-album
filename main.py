@@ -64,7 +64,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 1
+do = 110
 # aug = 0
 # aug = 1
 
@@ -169,7 +169,7 @@ if do == 1:
                         "file_names-labels.csv",
                         config,
                         None,
-                        5000,
+                        1000,
                     )
                     print("length ds: ", str(len(dataset)))
                     # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
