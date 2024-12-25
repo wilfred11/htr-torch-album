@@ -64,7 +64,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 3
+do = 1
 # aug = 0
 # aug = 1
 
@@ -79,18 +79,22 @@ np.random.seed(1)
 # models = ["gru"]
 models = ["gru"]
 
+
+
+
 if do == 110:
     print("saving images and transforms")
     read_words_generate_csv()
-
     config = Config("char_map_15.csv", 10)
-
     ds = get_replay_dataset(config)
-    ds.save_pictures_and_transform()
+    ds.save_pictures_and_transform1()
     ds.get_label_length_counts()
 
-
 if do == 1:
+    t_folder = "test/"
+    if os.path.isdir(t_folder):
+        shutil.rmtree(t_folder)
+    os.mkdir(t_folder)
     tfs = [
         "scores",
         "scores/adv",
@@ -128,7 +132,7 @@ if do == 1:
                 if aug == 1:
                     train_image_transform = train_transform()
 
-                    A.save(train_image_transform, "/scores/transform.json")
+                    #A.save(train_image_transform, "/scores/transform.json")
                 if aug == 0:
                     train_image_transform = A.Compose([])
 

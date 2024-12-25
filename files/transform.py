@@ -1,3 +1,4 @@
+import cv2
 from albumentations import ImageOnlyTransform
 from torchvision.transforms import functional as F
 from torchvision.transforms.v2.functional import get_size
@@ -128,49 +129,69 @@ class AResizeWithPad(ImageOnlyTransform):
             return F.resize(image, [self.h, self.w])
 
 
-def replay_transform():
+"""def replay_transform():
     return A.ReplayCompose(
         [
-            A.Rotate(limit=(-45.75, 45.75), p=1),
-            A.OneOf(
+            '''A.OneOf(
                 [
                     A.GaussNoise(p=1),
                     A.Blur(p=1),
                     A.RandomGamma(p=1),
-                    A.GridDistortion(p=1),
+                    #A.GridDistortion(p=1),
                     # A.PixelDropout(p=1, drop_value=None),
                     A.Morphological(p=1, scale=(4, 6), operation="dilation"),
                     A.Morphological(p=1, scale=(4, 6), operation="erosion"),
                     A.RandomBrightnessContrast(p=1),
-                    A.Affine(p=1),
+
                 ],
                 p=1,
-            ),
+            )''',
+            A.Affine(p=1, rotate=5)
+            #A.SafeRotate(limit=(-15.75, 15.75), p=1)
             # A.InvertImg(p=1),
             # AResizeWithPad(h=44, w=156),
         ]
-    )
+    )"""
 
+def replay_transform():
+    return A.ReplayCompose(
+        [
+            #A.InvertImg(p=1),
+            #A.ShiftScaleRotate(p=1, scale_limit=(-0.1,0.1), shift_limit=(-0.0625,0.0625 ),shift_limit_x=None,shift_limit_y=None ,rotate_limit=(-17.50, 17.50), border_mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_NEAREST)
+            #A.SafeRotate(limit=(-20.75, 20.75), p=1, interpolation=cv2.INTER_NEAREST),
+            A.Rotate(limit=(-15,15), p=1.0, border_mode=cv2.BORDER_CONSTANT)
+            #A.ToGray(p=1.0)
+            #A.Affine(rotate=(-12.75,12.75),p=1),
+            #A.InvertImg(p=1),
+            #A.RandomRotate90(p=1)
+
+            # AResizeWithPad(h=44, w=156),
+        ]
+    )
 
 def train_transform():
     return A.Compose(
         [
-            A.Rotate(limit=(-45.75, 45.75), p=1),
-            A.OneOf(
-                [
-                    A.GaussNoise(p=1),
-                    A.Blur(p=1),
-                    A.RandomGamma(p=1),
-                    A.GridDistortion(p=1),
-                    # A.PixelDropout(p=1, drop_value=None),
-                    A.Morphological(p=1, scale=(4, 6), operation="dilation"),
-                    A.Morphological(p=1, scale=(4, 6), operation="erosion"),
-                    A.RandomBrightnessContrast(p=1),
-                    A.Affine(p=1),
-                ],
-                p=0.25,
-            ),
+            A.Rotate(limit=(-15, 15), p=0.15, border_mode=cv2.BORDER_CONSTANT)
+            #A.Rotate(limit=(-45.75, 45.75), p=1)
             # A.InvertImg(p=1),
             # AResizeWithPad(h=44, w=156),
         ]
     )
+
+
+"""A.OneOf(
+                [
+
+                    #A.GaussNoise(p=1),
+                    #A.Blur(p=1),
+                    #A.RandomGamma(p=1),
+                    #A.GridDistortion(p=1),
+                    # A.PixelDropout(p=1, drop_value=None),
+                    #A.Morphological(p=1, scale=(4, 6), operation="dilation"),
+                    #A.Morphological(p=1, scale=(4, 6), operation="erosion"),
+                    #A.RandomBrightnessContrast(p=1),
+                    #A.Affine(p=1),
+                ],
+                p=0.25,
+            ),"""

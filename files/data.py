@@ -1,29 +1,24 @@
 import csv
-import os
 import torch
 import torchvision
 import torchvision.transforms
-import os, shutil
+import os
 from matplotlib import pyplot as plt
-import albumentations as A
-from torch.utils import data as data_utils
 from torchvision.io import read_image
 from torchvision.utils import draw_bounding_boxes
 
 
 from files.dataset import (
     HTRDataset,
-    TransformedDataset,
     AHTRDataset,
-    TransformedDatasetReplay,
 )
-from files.transform import TextToInt, FillArray, IntToText, replay_transform
+from files.replay_dataset import TransformedDatasetReplay
+from files.transform import IntToText, replay_transform
 from files.functions import (
     ascii_dir,
     iam_dir,
     generated_data_dir,
     htr_ds_dir,
-    external_data_dir,
 )
 
 

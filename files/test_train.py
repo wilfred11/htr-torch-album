@@ -95,8 +95,8 @@ def test(loader, crnn, optimizer, criterion, config):
 
         y_pred = crnn(x_test)
 
-        print("y_pred: ", y_pred)
-        print("y_pred shape : ", y_pred.shape)
+        #print("y_pred: ", y_pred)
+        #print("y_pred shape : ", y_pred.shape)
         y_pred = y_pred.permute(1, 0, 2)
         # print(y_pred)
 
@@ -109,10 +109,10 @@ def test(loader, crnn, optimizer, criterion, config):
 
         _, max_index = torch.max(y_pred, dim=2)
 
-        print("max_index:", max_index)
-        print("max_index len:", len(max_index))
-        bs = BeamSearch()
-        values, indexes = bs(y_pred)
+        #print("max_index:", max_index)
+        #print("max_index len:", len(max_index))
+        #bs = BeamSearch()
+        #values, indexes = bs(y_pred)
 
         print()
 

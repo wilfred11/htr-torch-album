@@ -1,37 +1,28 @@
 import csv
 import os
 import random
-import shutil
 import sys
-import json
-from PIL import Image
 
-import numpy
 import numpy as np
 import torchvision
-from albumentations.augmentations import transforms
-from albumentations.pytorch import ToTensorV2
-from torch import IntTensor, FloatTensor, tensor
+from matplotlib import pyplot as plt
+from torch import tensor
 from collections import Counter
 from torch.nn import functional as F1
 from torch.utils.data import Dataset, Subset
 from torchvision.io import read_image
 from torchvision.transforms import v2
-
-from files import config
+import torchvision.transforms.functional as F
 from files.functions import htr_ds_dir, generated_data_dir
 from sklearn.model_selection import KFold
 import albumentations as A
 import torch
-from PIL import Image
-from numpy import asarray
 from files.transform import (
     TextToInt,
     FillArray,
-    IntToText,
     ResizeWithPad,
-    AResizeWithPad,
 )
+from pathlib import Path
 
 
 def pad_image_to_nearest_multiple(image, multiple=256):
@@ -208,13 +199,14 @@ class AHTRDataset(Dataset):
                         continue
 
                     lbl_tensor = torch.IntTensor(fill_array(text_to_int(row[1])))
-                    img = read_image(row[0])
-
-                    transform = v2.Grayscale()
-                    img = transform(img)
+                    img = read_image(row[0],'RGB')
+                    #print(img.shape)
+                    #transform = v2.Grayscale()
+                    #img = transform(img)
                     img = torchvision.transforms.functional.invert(img)
                     t = ResizeWithPad(w=156, h=44)
                     img = t(img)
+                    #print(img.shape)
 
                     if img is None or lbl_tensor is None:
                         continue
@@ -373,82 +365,41 @@ class TransformedDataset(Dataset):
         return len(self.base)
 
     def __getitem__(self, idx):
-        x, y, _ = self.base[idx]
-        x = self.transforms(image=x)
-        # print(x)
-        # print(type(x["image"]))
-
-        ft = tensor(x["image"], dtype=torch.float32)
-        # print(type(ft))
-        # ft = FloatTensor()
+        x, y, n = self.base[idx]
+        #print(type(x))
+        x_ = x.transpose(1, 2, 0)
+        x_original = torchvision.transforms.functional.to_pil_image(x_)
+        fname = os.path.basename(n)
+        fname_no_ext = Path(fname).stem
+        #x_original.save("test/" + fname)
+        x_original_t = self.transforms(image=x_)
+        x_original_t__ = torchvision.transforms.functional.to_pil_image(x_original_t["image"])
+        #x_original_t__.save("test/" + fname_no_ext +"_transf"+".png")
+        x_gray = v2.functional.rgb_to_grayscale(x_original_t__, num_output_channels=1)
+        t=v2.ToTensor()
+        x_gray=t(x_gray)
+        #print(x_gray.shape)
+        ft = tensor(x_gray, dtype=torch.float32)
         return ft, y
 
     def get_label_length_counts(self):
         print(self.base.get_label_lengths_counts())
 
 
-class TransformedDatasetReplay(Dataset):
-    def __init__(self, base_dataset, transforms: A.ReplayCompose):
-        super(TransformedDatasetReplay, self).__init__()
-        self.base = base_dataset
-        self.transforms = transforms
+def test_transformation(
+        transformation,
+        image: np.ndarray
+) -> None:
+    fig, axes = plt.subplots(nrows=1, ncols=2)
 
-    def __len__(self):
-        return len(self.base)
+    transformed_image = transformation(image=image)
+    transformed_image = transformed_image["image"].astype(np.uint8)
 
-    def __getitem__(self, idx):
-        x, y, img_name = self.base[idx]
-        f_t = self.transforms(image=x)
-        ft = tensor(f_t["image"], dtype=torch.float32)
-        return ft, y
+    axes[0].imshow(image)
+    axes[0].axis('off')
+    axes[0].set_title('Original Image')
 
-    def save_pictures_and_transform(self):
-        target_folder = "images_and_transform/"
-        if os.path.isdir(target_folder):
-            shutil.rmtree(target_folder)
-        os.mkdir(target_folder)
+    axes[1].imshow(transformed_image)
+    axes[1].axis('off')
+    axes[1].set_title('Transformed Image')
 
-        rnd_indexes = [random.randint(0, len(self.base)) for p in range(0, 10)]
-        count = 0
-        # print(x)
-        f = open(target_folder + "transforms.txt", "a")
-        for i in rnd_indexes:
-            base_transform = A.Compose(
-                [
-                    # A.LongestMaxSize(max_size=156, interpolation=1, p=1),
-                    # A.PadIfNeeded(
-                    #    min_height=None, min_width=156, border_mode=0, value=(0, 0, 0)
-                    # ),
-                    # A.InvertImg(p=1),
-                ]
-            )
-            x_bt = base_transform(image=self.base[i][0])
-            print(x_bt["image"].shape)
-            # im_untransformed = Image.fromarray(self.base[i][0].squeeze(), "L")
-            im_untransformed = Image.fromarray(x_bt["image"].squeeze(), "L")
-            fname = os.path.basename(self.base[i][2])
-            im_untransformed.save(target_folder + fname)
-
-            x_t = self.transforms(image=self.base[i][0])
-            im_transformed = Image.fromarray(x_t["image"].squeeze(), "L")
-            im_transformed.save(target_folder + "transf_" + fname)
-
-            f.write(fname + "\n")
-            # print(x_t["replay"])
-            f.write(x_t["replay"]["transforms"][0]["__class_fullname__"] + "\n")
-            f.write(
-                "angle:" + str(x_t["replay"]["transforms"][0]["params"]["angle"]) + "\n"
-            )
-            for one_of in x_t["replay"]["transforms"][1]["transforms"]:
-                if one_of["applied"]:
-                    # print(one_of["__class_fullname__"])
-                    f.write(str(one_of["__class_fullname__"]) + "\n")
-                    if one_of["__class_fullname__"] == "Morphological":
-                        f.write(str(one_of["operation"]) + "\n")
-                    # f.write(one_of)
-                    # print(one_of)
-            f.write("xxxxxxxxxxx\n")
-        f.close()
-
-    def get_label_length_counts(self):
-        print(self.base.get_label_length_counts())
