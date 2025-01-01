@@ -280,15 +280,13 @@ class CRNN_adv(nn.Module):
 
 class CRNN(nn.Module):
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, dropout):
         super(CRNN, self).__init__()
 
         self.num_classes = num_classes + 1
         self.image_H = 44
 
         self.cnn = simple_CNN()
-        # http://layer-calc.com/
-        # c= 64 h=10 w=43
 
         self.postconv_height = 7
         self.postconv_width = 35
@@ -305,8 +303,9 @@ class CRNN(nn.Module):
             self.gru_num_layers,
             batch_first=True,
             bidirectional=True,
+            dropout=dropout
         )
-
+        #self.dropout = nn.Dropout(p=dropout)
         self.fc = nn.Linear(self.gru_hidden_size * 2, self.num_classes)
 
     def forward(self, x):
@@ -321,9 +320,10 @@ class CRNN(nn.Module):
         # print('out after resh:', out.shape)
 
         out, gru_h = self.gru(out, self.gru_h)
-        # print('gru_h.shp:',gru_h.shape)
+        #out= self.dropout(out)
+        #print('gru_h.shp:',gru_h.shape)
         self.gru_h = gru_h.detach()
-        # print("out.shape: ", str(out.shape))
+        print("out.shape: ", str(out.shape))
         # print("test: ", F.softmax(self.fc(out[0])))
         """print(
             "stack shape :",
@@ -333,7 +333,7 @@ class CRNN(nn.Module):
         out = torch.stack(
             [F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])]
         )
-        # print("out.shape stacked: ", str(out.shape))
+        print("out.shape stacked: ", str(out.shape))
         # print('final out.shp:', out.shape)
         return out
 

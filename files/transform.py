@@ -189,16 +189,17 @@ def train_transform():
             [
 
                 A.GaussNoise(p=1),
-                # A.Blur(p=1),
                 A.RandomGamma(p=1),
-                # A.GridDistortion(p=1),
-                # A.PixelDropout(p=1, drop_value=None),
                 A.Morphological(p=1, scale=(4, 6), operation="dilation"),
                 A.Morphological(p=1, scale=(4, 6), operation="erosion"),
-                # A.RandomBrightnessContrast(p=1),
-                # A.Affine(p=1),
             ],
             p=0.45,
+            ),
+            A.OneOf(
+                [
+                    A.PixelDropout(p=1, drop_value=None),
+                ],
+                p=0.25
             )
         ]
     )

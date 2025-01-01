@@ -64,21 +64,21 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 110
+do = 62
 # aug = 0
 # aug = 1
 
 text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
-
 random_seed = 1
 random.seed(random_seed)
 np.random.seed(1)
 
 # models = ["gru"]
 models = ["gru"]
-
+dropout = [0,.5]
+augs = [0, 1]
 
 
 
@@ -91,201 +91,220 @@ if do == 110:
     ds.get_label_length_counts()
 
 if do == 1:
-    t_folder = "test/"
-    if os.path.isdir(t_folder):
-        shutil.rmtree(t_folder)
-    os.mkdir(t_folder)
-    tfs = [
-        "scores",
-        "scores/adv",
-        "scores/base",
-        "scores/base/aug",
-        "scores/adv/aug",
-        "scores/base/no_aug",
-        "scores/adv/no_aug",
-    ]
-    for tf in tfs:
-        if os.path.isdir(tf):
-            shutil.rmtree(tf)
-        os.mkdir(tf)
-    # augs = [0, 1]
-    augs = [1]
-    advs = [0]
+    with keep.running() as k:
+        t_folder = "test/"
+        if os.path.isdir(t_folder):
+            shutil.rmtree(t_folder)
+        os.mkdir(t_folder)
+        tfs = [
+            "scores",
+            "scores/adv",
+            "scores/base",
+            "scores/base/aug",
+            "scores/adv/aug",
+            "scores/base/no_aug",
+            "scores/adv/no_aug",
+            "scores/base/aug/drop",
+            "scores/adv/aug/drop",
+            "scores/base/no_aug/drop",
+            "scores/adv/no_aug/drop",
+        ]
+        for tf in tfs:
+            if os.path.isdir(tf):
+                shutil.rmtree(tf)
+            os.mkdir(tf)
+        # augs = [0, 1]
+        #augs = [0, 1]
+        advs = [0]
 
-    read_words_generate_csv()
+        read_words_generate_csv()
 
-    config = Config("char_map_short.csv", 10)
+        config = Config("char_map_15.csv", 6)
 
-    print("num classes: ", config.num_classes)
-    print("blank_label: ", config.blank_label)
-    print("empty_label: ", config.empty_label)
-    print("char_set: ", config.char_set)
-    print("int to char map: ", config.int_to_char_map)
-    print("char to int map: ", config.char_to_int_map)
+        print("num classes: ", config.num_classes)
+        print("blank_label: ", config.blank_label)
+        print("empty_label: ", config.empty_label)
+        print("char_set: ", config.char_set)
+        print("int to char map: ", config.int_to_char_map)
+        print("char to int map: ", config.char_to_int_map)
 
-    for model in models:
-        for adv in advs:
-            for aug in augs:
-                print("context: " + model + " adv: " + str(adv) + " aug: " + str(aug))
-                print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-                test_image_transform = A.Compose([])
-                if aug == 1:
-                    train_image_transform = train_transform()
+        dataset = AHTRDataset(
+            "file_names-labels.csv",
+            config,
+            None,
+            15040,
+        )
 
-                    #A.save(train_image_transform, "/scores/transform.json")
-                if aug == 0:
-                    train_image_transform = A.Compose([])
+        for model in models:
+            for adv in advs:
+                for aug in augs:
+                    for drop in dropout:
+                        print("context: " + model + " adv: " + str(adv) + " aug: " + str(aug)+ " drop: "+ str(drop))
+                        print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+                        test_image_transform = A.Compose([])
+                        if aug == 1:
+                            train_image_transform = train_transform()
 
-                with keep.running() as k:
-                    print("htr training and testing")
+                            #A.save(train_image_transform, "/scores/transform.json")
+                        if aug == 0:
+                            train_image_transform = A.Compose([])
 
-                    if model == "gru" and adv == 0:
-                        crnn = CRNN(config.num_classes).to(device)
-                    elif model == "lstm" and adv == 0:
-                        crnn = CRNN_lstm(config.num_classes).to(device)
-                    elif model == "rnn" and adv == 0:
-                        crnn = CRNN_rnn(config.num_classes).to(device)
-                    elif model == "gru" and adv == 1:
-                        crnn = CRNN_adv(config.num_classes).to(device)
+                        with keep.running() as k:
+                            print("htr training and testing")
 
-                    prefix = model + "_"
+                            if model == "gru" and adv == 0:
+                                crnn = CRNN(config.num_classes, drop).to(device)
+                            elif model == "lstm" and adv == 0:
+                                crnn = CRNN_lstm(config.num_classes).to(device)
+                            elif model == "rnn" and adv == 0:
+                                crnn = CRNN_rnn(config.num_classes).to(device)
+                            elif model == "gru" and adv == 1:
+                                crnn = CRNN_adv(config.num_classes).to(device)
 
-                    criterion = nn.CTCLoss(
-                        blank=config.blank_label, reduction="mean", zero_infinity=True
-                    )
-                    # optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
-                    optimizer = torch.optim.Adam(
-                        params=crnn.parameters(),
-                        lr=0.001,
-                        betas=(0.9, 0.999),
-                        eps=1e-08,
-                        weight_decay=0,
-                        amsgrad=False,
-                    )
+                            prefix = model + "_"
 
-                    # MAX_EPOCHS = 2500
-
-                    dataset = AHTRDataset(
-                        "file_names-labels.csv",
-                        config,
-                        None,
-                        1000,
-                    )
-                    print("length ds: ", str(len(dataset)))
-                    # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
-
-                    list_training_loss = []
-                    list_testing_loss = []
-                    list_testing_wer = []
-                    list_testing_cer = []
-                    list_length_correct = []
-                    trained_on_words = []
-
-                    for epoch in range(config.num_epoch):
-                        data_handler = TransformedDatasetEpochIterator(
-                            dataset,
-                            current_epoch=epoch,
-                            num_epoch=config.num_epoch,
-                            train_transform=train_image_transform,
-                            test_transform=test_image_transform,
-                            seed=random_seed,
-                        )
-                        train_data, test_data = data_handler.get_splits()
-
-                        trl = torch.utils.data.DataLoader(
-                            train_data, batch_size=4, shuffle=False
-                        )
-                        tl = torch.utils.data.DataLoader(
-                            test_data, batch_size=1, shuffle=False
-                        )
-                        training_loss, trained_on_words = train(
-                            trained_on_words, trl, crnn, optimizer, criterion, config
-                        )
-                        (
-                            testing_loss,
-                            wer,
-                            cer,
-                            length_correct,
-                            list_words,
-                            list_hypotheses,
-                        ) = test(tl, crnn, optimizer, criterion, config)
-
-                        list_training_loss.append(training_loss)
-                        list_testing_loss.append(testing_loss)
-                        list_testing_wer.append(wer)
-                        list_testing_cer.append(cer)
-                        list_length_correct.append(length_correct)
-
-                        if aug == 0 and adv == 0:
-                            dir = base_no_aug_score_dir()
-                        elif aug == 1 and adv == 0:
-                            dir = base_aug_score_dir()
-                        elif aug == 0 and adv == 1:
-                            dir = adv_no_aug_score_dir()
-                        elif aug == 1 and adv == 1:
-                            dir = adv_aug_score_dir()
-
-                        columns = ["word", "hypothesis"]
-                        with open(
-                            dir
-                            + prefix
-                            + "words_hypothesis_epoch_"
-                            + str(epoch)
-                            + ".csv",
-                            "w",
-                            newline="",
-                        ) as f:
-                            write = csv.writer(f)
-                            write.writerow(columns)
-                            for i in range(len(list_words)):
-                                l = [list_words[i], list_hypotheses[i]]
-                                write.writerow(l)
-
-                        if epoch == 4:
-                            print("training loss", list_training_loss)
-                            with open(
-                                dir + prefix + "list_training_loss.pkl", "wb"
-                            ) as f1:
-                                pickle.dump(list_training_loss, f1)
-                            print("testing loss", list_testing_loss)
-                            with open(
-                                dir + prefix + "list_testing_loss.pkl", "wb"
-                            ) as f2:
-                                pickle.dump(list_testing_loss, f2)
-                            with open(
-                                dir + prefix + "list_testing_wer.pkl", "wb"
-                            ) as f3:
-                                pickle.dump(list_testing_wer, f3)
-                            with open(
-                                dir + prefix + "list_testing_cer.pkl", "wb"
-                            ) as f4:
-                                pickle.dump(list_testing_cer, f4)
-                            with open(
-                                dir + prefix + "list_testing_length_correct.pkl",
-                                "wb",
-                            ) as f5:
-                                pickle.dump(list_length_correct, f5)
-
-                            trained_on_words_count = dict(Counter(trained_on_words))
-
-                            trained_on_words_count = dict(
-                                sorted(
-                                    trained_on_words_count.items(),
-                                    key=lambda item: len(item[0]),
-                                )
+                            criterion = nn.CTCLoss(
+                                blank=config.blank_label, reduction="mean", zero_infinity=True
+                            )
+                            # optimizer = torch.optim.Adam(crnn.parameters(), lr=0.001)
+                            optimizer = torch.optim.Adam(
+                                params=crnn.parameters(),
+                                lr=0.001,
+                                betas=(0.9, 0.999),
+                                eps=1e-08,
+                                weight_decay=0,
+                                amsgrad=False,
                             )
 
-                            with open(
-                                dir + prefix + "trained_on_words_count.csv",
-                                "w",
-                                newline="",
-                            ) as f6:
-                                w = csv.writer(f6)
-                                w.writerows(trained_on_words_count.items())
+                            # MAX_EPOCHS = 2500
 
-                            break
+                            # dataset
+                            print("length ds: ", str(len(dataset)))
+                            # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
-                    torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
+                            list_training_loss = []
+                            list_testing_loss = []
+                            list_testing_wer = []
+                            list_testing_cer = []
+                            list_length_correct = []
+                            trained_on_words = []
+
+                            for epoch in range(config.num_epoch):
+                                data_handler = TransformedDatasetEpochIterator(
+                                    dataset,
+                                    current_epoch=epoch,
+                                    num_epoch=config.num_epoch,
+                                    train_transform=train_image_transform,
+                                    test_transform=test_image_transform,
+                                    seed=random_seed,
+                                )
+                                train_data, test_data = data_handler.get_splits()
+
+
+                                trl = torch.utils.data.DataLoader(
+                                    train_data, batch_size=4, shuffle=False
+                                )
+                                tl = torch.utils.data.DataLoader(
+                                    test_data, batch_size=1, shuffle=False
+                                )
+                                training_loss, trained_on_words = train(
+                                    trained_on_words, trl, crnn, optimizer, criterion, config
+                                )
+                                (
+                                    testing_loss,
+                                    wer,
+                                    cer,
+                                    length_correct,
+                                    list_words,
+                                    list_hypotheses,
+                                ) = test(tl, crnn, optimizer, criterion, config)
+
+                                list_training_loss.append(training_loss)
+                                list_testing_loss.append(testing_loss)
+                                list_testing_wer.append(wer)
+                                list_testing_cer.append(cer)
+                                list_length_correct.append(length_correct)
+
+                                if drop!=0:
+                                    if aug == 0 and adv == 0:
+                                        dir = base_no_aug_score_dir()+"drop/"
+                                    elif aug == 1 and adv == 0:
+                                        dir = base_aug_score_dir()+"drop/"
+                                    elif aug == 0 and adv == 1:
+                                        dir = adv_no_aug_score_dir()+"drop/"
+                                    elif aug == 1 and adv == 1:
+                                        dir = adv_aug_score_dir()+"drop/"
+                                else:
+                                    if aug == 0 and adv == 0:
+                                        dir = base_no_aug_score_dir()
+                                    elif aug == 1 and adv == 0:
+                                        dir = base_aug_score_dir()
+                                    elif aug == 0 and adv == 1:
+                                        dir = adv_no_aug_score_dir()
+                                    elif aug == 1 and adv == 1:
+                                        dir = adv_aug_score_dir()
+
+                                columns = ["word", "hypothesis"]
+                                with open(
+                                    dir
+                                    + prefix
+                                    + "words_hypothesis_epoch_"
+                                    + str(epoch)
+                                    + ".csv",
+                                    "w",
+                                    newline="",
+                                ) as f:
+                                    write = csv.writer(f)
+                                    write.writerow(columns)
+                                    for i in range(len(list_words)):
+                                        l = [list_words[i], list_hypotheses[i]]
+                                        write.writerow(l)
+
+                                if epoch == 4:
+                                    print("training loss", list_training_loss)
+                                    with open(
+                                        dir + prefix + "list_training_loss.pkl", "wb"
+                                    ) as f1:
+                                        pickle.dump(list_training_loss, f1)
+                                    print("testing loss", list_testing_loss)
+                                    with open(
+                                        dir + prefix + "list_testing_loss.pkl", "wb"
+                                    ) as f2:
+                                        pickle.dump(list_testing_loss, f2)
+                                    with open(
+                                        dir + prefix + "list_testing_wer.pkl", "wb"
+                                    ) as f3:
+                                        pickle.dump(list_testing_wer, f3)
+                                    with open(
+                                        dir + prefix + "list_testing_cer.pkl", "wb"
+                                    ) as f4:
+                                        pickle.dump(list_testing_cer, f4)
+                                    with open(
+                                        dir + prefix + "list_testing_length_correct.pkl",
+                                        "wb",
+                                    ) as f5:
+                                        pickle.dump(list_length_correct, f5)
+
+                                    trained_on_words_count = dict(Counter(trained_on_words))
+
+                                    trained_on_words_count = dict(
+                                        sorted(
+                                            trained_on_words_count.items(),
+                                            key=lambda item: len(item[0]),
+                                        )
+                                    )
+
+                                    with open(
+                                        dir + prefix + "trained_on_words_count.csv",
+                                        "w",
+                                        newline="",
+                                    ) as f6:
+                                        w = csv.writer(f6)
+                                        w.writerows(trained_on_words_count.items())
+
+                                    break
+
+                            torch.save(crnn.state_dict(), dir + prefix + "trained_reader")
 if do == 111:
     cnn = simple_CNN()
     torchinfo.summary(
@@ -337,41 +356,19 @@ if do == 3:
     visualize_model(loader, crnn)
 
 
-if do == 6:
 
-    if model == 2:
-        prefix = "gru_"
-    elif model == 3:
-        prefix = "lstm_"
-    elif model == 1:
-        prefix = "rnn_"
-
-    if aug == 0:
-        dir = base_no_aug_score_dir()
-    else:
-        dir = base_aug_score_dir()
-
-    with open(dir + prefix + "list_training_loss.pkl", "rb") as f1:
-        list_training_loss = pickle.load(f1)
-    with open(dir + prefix + "list_testing_loss.pkl", "rb") as f2:
-        list_testing_loss = pickle.load(f2)
-
-    epochs = range(1, len(list_training_loss) + 1)
-    plt.plot(epochs, list_training_loss, "g", label="Training loss")
-    plt.plot(epochs, list_testing_loss, "b", label="Testing loss")
-    plt.xticks(range(1, len(list_training_loss) + 1))
-    plt.title("Training and Validation loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.legend()
-    plt.show()
-
-if do == 61:
-    tfs = ["aug", "no_aug", "aug/graphs", "no_aug/graphs"]
+if do == 62:
+    tfs = ["scores/graph/"]
+    scoring = ["testing_wer", "testing_cer", "testing_loss", "training_loss"]
+    all_dict=dict()
     for tf in tfs:
         if os.path.isdir(tf):
             shutil.rmtree(tf)
         os.mkdir(tf)
+        for sc in scoring:
+            if os.path.isdir(tf + sc+"/"):
+                shutil.rmtree(tf+sc+"/")
+            os.mkdir(tf+sc+"/")
 
     prefix = ""
     if model == 2:
@@ -381,39 +378,40 @@ if do == 61:
     elif model == 1:
         prefix = "rnn"
 
-    if aug == 0:
-        dir = base_no_aug_score_dir()
-    else:
-        dir = base_aug_score_dir()
+    dict_ = dict()
+    for sc in scoring:
+        for aug in augs:
+            for drop in dropout:
+                dr=""
+                if drop==0:
+                    dr=""
+                else:
+                    dr="drop/"
 
-    with open(dir + prefix + "list_testing_wer.pkl", "rb") as f3:
-        gru_list_testing_wer = pickle.load(f3)
-    with open(dir + prefix + "list_testing_cer.pkl", "rb") as f4:
-        gru_list_testing_cer = pickle.load(f4)
-    with open(dir + "lstm_list_testing_wer.pkl", "rb") as f5:
-        lstm_list_testing_wer = pickle.load(f5)
-    with open(dir + "lstm_list_testing_cer.pkl", "rb") as f6:
-        lstm_list_testing_cer = pickle.load(f6)
-    with open(dir + "rnn_list_testing_wer.pkl", "rb") as f1:
-        rnn_list_testing_wer = pickle.load(f1)
-    with open(dir + "rnn_list_testing_cer.pkl", "rb") as f2:
-        rnn_list_testing_cer = pickle.load(f2)
-    epochs = range(1, len(lstm_list_testing_wer) + 1)
-    plt.plot(epochs, gru_list_testing_wer, label="CRNN GRU testing wer", color="black")
-    plt.plot(epochs, gru_list_testing_cer, label="CRNN GRU testing cer", color="blue")
-    plt.plot(epochs, lstm_list_testing_wer, label="CRNN LSTM testing wer", color="red")
-    plt.plot(
-        epochs, lstm_list_testing_cer, label="CRNN LSTM testing cer", color="orange"
-    )
-    plt.plot(epochs, rnn_list_testing_wer, label="CRNN RNN testing wer", color="grey")
-    plt.plot(epochs, rnn_list_testing_cer, label="CRNN RNN testing cer", color="green")
-    plt.xticks(range(1, len(lstm_list_testing_wer) + 1))
-    # plt.title('Testing wer/cer')
-    plt.xlabel("Epochs")
-    plt.ylabel("wer/cer")
-    plt.legend()
-    plt.show()
-    if aug == 0:
-        plt.savefig(no_aug_graphs() + "compare models.png")
-    else:
-        plt.savefig(aug_graphs() + "compare models.png")
+                if aug == 0:
+                    dir = base_no_aug_score_dir()
+                else:
+                    dir = base_aug_score_dir()
+
+
+                with open(dir +dr+ prefix+"_" + "list_"+sc +".pkl", "rb") as f3:
+                        list_ = pickle.load(f3)
+
+                dict_[prefix + "-"+ "dropout:"+ str(drop) +"-"+ "aug:"+ str(aug)] = list_
+                all_dict[sc]=dict_
+        dict_=dict()
+    for key1 in all_dict:
+        d = all_dict[key1]
+        print(len(d))
+        for key in d:
+            sc_item= d[key]
+            epochs = range(1, len(sc_item) + 1)
+            plt.plot(epochs, sc_item, label=key)
+        plt.xticks(range(1, len(sc_item) + 1))
+        plt.title(key1.replace("_"," "))
+        plt.xlabel("Epochs")
+        plt.ylabel(key1.split("_",1)[1])
+        plt.legend()
+        plt.savefig(tfs[0] + key1 + "/" + "compare models.png")
+        plt.show()
+

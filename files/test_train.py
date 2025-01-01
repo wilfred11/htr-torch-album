@@ -15,6 +15,7 @@ def train(trained_on_words, train_loader, crnn, optimizer, criterion, config):
     counter = 0
 
     for batch_id, (x_train, y_train) in enumerate(train_loader):
+        crnn.train()
 
         batch_size = x_train.shape[0]
         crnn.reset_hidden(batch_size)
@@ -37,6 +38,7 @@ def train(trained_on_words, train_loader, crnn, optimizer, criterion, config):
         counter = counter + 1
         # print('train counter:', counter)
         for i in range(batch_size):
+            crnn.eval()
             raw_prediction = list(max_index[:, i].numpy())
             prediction = torch.IntTensor(
                 [c for c, _ in groupby(raw_prediction) if c != config.blank_label]
@@ -86,8 +88,9 @@ def test(loader, crnn, optimizer, criterion, config):
     total = 0
     num_batches = 0
     total_loss = 0
-
+    crnn.eval()
     for batch_id, (x_test, y_test) in enumerate(loader):
+
         batch_size = x_test.shape[0]
         crnn.reset_hidden(batch_size)
 
@@ -114,7 +117,7 @@ def test(loader, crnn, optimizer, criterion, config):
         #bs = BeamSearch()
         #values, indexes = bs(y_pred)
 
-        print()
+        #print()
 
         for i in range(batch_size):
             raw_prediction = list(max_index[:, i].numpy())
