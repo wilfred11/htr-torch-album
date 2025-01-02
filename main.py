@@ -3,6 +3,7 @@ import os
 import random
 import shutil
 from collections import Counter
+import pandas as pd
 
 import numpy as np
 import torch.nn as nn
@@ -64,7 +65,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 62
+do = 64
 # aug = 0
 # aug = 1
 
@@ -414,4 +415,79 @@ if do == 62:
         plt.legend()
         plt.savefig(tfs[0] + key1 + "/" + "compare models.png")
         plt.show()
+
+if do==63:
+    dir="scores/base/aug/"
+    with open(dir+"gru_list_testing_length_correct.pkl", "rb") as f3:
+        list_ = pickle.load(f3)
+    lengths= list(range(1,6))
+    vals=["correct","incorrect"]
+
+    for li in list_:
+        print(li)
+        for l in lengths:
+            for v in vals:
+                if (l,v) not in li:
+                    li[(l,v)]= 0
+
+        li=dict(sorted(li.items()))
+        print(li)
+
+    for li in list_:
+    #for l in li:
+        epochs = range(1, len(list_) + 1)
+        plt.plot(epochs, li, label="")
+    plt.xticks(range(1, len(sc_item) + 1))
+    plt.title(key1.replace("_"," "))
+    plt.xlabel("hs")
+    plt.ylabel("")
+    plt.legend()
+    plt.savefig("compare models.png")
+    plt.show()
+
+    #print(list_)
+
+if do==64:
+    dir = "scores/base/aug/drop/"
+
+    with open(dir + "gru_list_testing_length_correct.pkl", "rb") as f3:
+        list_ = pickle.load(f3)
+    lengths = list(range(1, 7))
+    vals = ["correct", "incorrect"]
+
+    list_dict = []
+
+    for li in list_:
+        #print(li)
+        for l in lengths:
+            for v in vals:
+                if (l, v) not in li:
+                    li[(l, v)] = 0
+
+        li = dict(sorted(li.items()))
+        list_dict.append(li)
+        print(li)
+    fig, axes = plt.subplots(nrows=2, ncols=3)
+    fig.tight_layout()
+    fig.subplots_adjust(bottom=0.114, left=0.088)
+    kl= [[(0, 2), (2,4), (4,6)],[(6,8), (8,10), (10,12)]]
+    for k in range(0, 2):
+        for i in range(0,3):
+            df = pd.DataFrame(list_dict)
+            print(df.head(5))
+            x1=i*2
+            x2=i*2+2
+            df1 = df.iloc[:, kl[k][i][0]:kl[k][i][1]]
+            #plt.figure()
+            ax1 = df1.plot(ax=axes[k,i])
+            ax1.set_xticklabels(range(1, 6), rotation='horizontal')
+            ax1.set_xticks(range(0,5))
+            ax1.set_xlabel("Epoch")
+            ax1.set_ylabel("Number of words")
+            ax1.legend(loc='best')
+    #fig.suptitle(' Word length, correctness ', fontsize=12)
+    #plt.figure(figsize=(16, 8))
+    plt.savefig("scores/graph/length.png")
+    plt.show()
+
 
