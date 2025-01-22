@@ -13,6 +13,8 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 from torch import nn
 
+import pywhatkit as pw
+
 import torch.utils.data as data_utils
 import albumentations as A
 import torchinfo
@@ -30,7 +32,7 @@ from files.dataset import (
     CustomObjectDetectionDataset,
     AHTRDataset,
     KFoldTransformedDatasetIterator,
-    TransformedDatasetEpochIterator,
+    TransformedDatasetEpochIterator, AHTRDatasetOther,
 )
 from files.transform import ResizeWithPad, AResizeWithPad, train_transform
 import torch
@@ -65,7 +67,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 64
+do = 1
 # aug = 0
 # aug = 1
 
@@ -117,6 +119,8 @@ if do == 1:
         # augs = [0, 1]
         #augs = [0, 1]
         advs = [0]
+        pretrain = 1
+        stop_pretrain = 0
 
         read_words_generate_csv()
 
@@ -136,12 +140,23 @@ if do == 1:
             15040,
         )
 
+
+
+        #dataset_ = torch.utils.data.ConcatDataset([dataset, dataset1])
+
         for model in models:
             for adv in advs:
                 for aug in augs:
                     for drop in dropout:
-                        print("context: " + model + " adv: " + str(adv) + " aug: " + str(aug)+ " drop: "+ str(drop))
-                        print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+                        if pretrain == 1:
+                            dataset1 = AHTRDatasetOther(
+                                "dirs.pkl",
+                                config,
+                                None,
+                                5135,
+                            )
+
+
                         test_image_transform = A.Compose([])
                         if aug == 1:
                             train_image_transform = train_transform()
@@ -177,6 +192,46 @@ if do == 1:
                                 amsgrad=False,
                             )
 
+                            if pretrain==1:
+                                print("***************************")
+                                print("pretraining")
+                                for it in range(5):
+                                    print("iteration "+str(it))
+                                    for epoch in range(config.num_epoch):
+                                        print("epoch "+ str(epoch))
+                                        data_handler = TransformedDatasetEpochIterator(
+                                            dataset1,
+                                            current_epoch=epoch,
+                                            num_epoch=config.num_epoch,
+                                            train_transform=A.Compose([]),
+                                            test_transform=A.Compose([]),
+                                            seed=random_seed,
+                                            train_val_split=[1,0]
+                                        )
+                                        train_data, test_data = data_handler.get_splits()
+
+                                        trl = torch.utils.data.DataLoader(
+                                            train_data, batch_size=4, shuffle=False
+                                        )
+                                        tl = torch.utils.data.DataLoader(
+                                            test_data, batch_size=1, shuffle=False
+                                        )
+                                        train(
+                                            [], trl, crnn, optimizer, criterion, config
+                                        )
+
+                                        test(tl, crnn, optimizer, criterion, config)
+
+                                        if epoch == 4:
+                                            break
+                                print("end pretraining")
+                                print("***************************")
+                                #pretrain=0
+                                #torch.save(crnn.state_dict(), prefix + "pretrained_reader")
+                            print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+                            print(
+                                "context: " + model + " adv: " + str(adv) + " aug: " + str(aug) + " drop: " + str(drop))
+
                             # MAX_EPOCHS = 2500
 
                             # dataset
@@ -190,7 +245,9 @@ if do == 1:
                             list_length_correct = []
                             trained_on_words = []
 
+
                             for epoch in range(config.num_epoch):
+                                print("epoch "+str(epoch))
                                 data_handler = TransformedDatasetEpochIterator(
                                     dataset,
                                     current_epoch=epoch,
@@ -260,7 +317,7 @@ if do == 1:
                                     for i in range(len(list_words)):
                                         l = [list_words[i], list_hypotheses[i]]
                                         write.writerow(l)
-
+                                print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
                                 if epoch == 4:
                                     print("training loss", list_training_loss)
                                     with open(
@@ -418,6 +475,7 @@ if do == 62:
 
 if do==63:
     dir="scores/base/aug/"
+
     with open(dir+"gru_list_testing_length_correct.pkl", "rb") as f3:
         list_ = pickle.load(f3)
     lengths= list(range(1,6))
@@ -448,46 +506,103 @@ if do==63:
     #print(list_)
 
 if do==64:
+    base_dir = "scores/base/"
+    base_dir_dest = "scores/graph/"
     dir = "scores/base/aug/drop/"
+    dirs =[]
+    dirs.append(base_dir_dest)
+    for aug in augs:
+        for drop in dropout:
+            if aug == 0:
+                au = "no_aug/"
+            else:
+                au = "aug/"
+            dir_ =base_dir_dest+au
+            dirs.append(dir_)
+            if drop == 0:
+                dr = ""
+            else:
+                dr = "drop/"
 
-    with open(dir + "gru_list_testing_length_correct.pkl", "rb") as f3:
-        list_ = pickle.load(f3)
-    lengths = list(range(1, 7))
-    vals = ["correct", "incorrect"]
+            dir_ = dir_ + dr
+            dirs.append(dir_)
 
-    list_dict = []
+    for d in dirs:
+        if os.path.isdir(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
 
-    for li in list_:
-        #print(li)
-        for l in lengths:
-            for v in vals:
-                if (l, v) not in li:
-                    li[(l, v)] = 0
+    for aug in augs:
+        for drop in dropout:
+            if drop == 0:
+                dr = ""
+            else:
+                dr = "drop/"
 
-        li = dict(sorted(li.items()))
-        list_dict.append(li)
-        print(li)
-    fig, axes = plt.subplots(nrows=2, ncols=3)
-    fig.tight_layout()
-    fig.subplots_adjust(bottom=0.114, left=0.088)
-    kl= [[(0, 2), (2,4), (4,6)],[(6,8), (8,10), (10,12)]]
-    for k in range(0, 2):
-        for i in range(0,3):
-            df = pd.DataFrame(list_dict)
-            print(df.head(5))
-            x1=i*2
-            x2=i*2+2
-            df1 = df.iloc[:, kl[k][i][0]:kl[k][i][1]]
-            #plt.figure()
-            ax1 = df1.plot(ax=axes[k,i])
-            ax1.set_xticklabels(range(1, 6), rotation='horizontal')
-            ax1.set_xticks(range(0,5))
-            ax1.set_xlabel("Epoch")
-            ax1.set_ylabel("Number of words")
-            ax1.legend(loc='best')
-    #fig.suptitle(' Word length, correctness ', fontsize=12)
-    #plt.figure(figsize=(16, 8))
-    plt.savefig("scores/graph/length.png")
+            if aug == 0:
+                au = "no_aug/"
+            else:
+                au = "aug/"
+            dir= base_dir+ au+dr
+            with open(dir + "gru_list_testing_length_correct.pkl", "rb") as f3:
+                list_ = pickle.load(f3)
+            lengths = list(range(1, 7))
+            vals = ["correct", "incorrect"]
+
+            list_dict = []
+
+            for li in list_:
+                #print(li)
+                for l in lengths:
+                    for v in vals:
+                        if (l, v) not in li:
+                            li[(l, v)] = 0
+
+                li = dict(sorted(li.items()))
+                list_dict.append(li)
+                print(li)
+            fig, axes = plt.subplots(nrows=2, ncols=3)
+            fig.tight_layout()
+            fig.subplots_adjust(bottom=0.114, left=0.088)
+            kl= [[(0, 2), (2,4), (4,6)],[(6,8), (8,10), (10,12)]]
+            for k in range(0, 2):
+                for i in range(0,3):
+                    df = pd.DataFrame(list_dict)
+                    print(df.head(5))
+                    x1=i*2
+                    x2=i*2+2
+                    df1 = df.iloc[:, kl[k][i][0]:kl[k][i][1]]
+                    #plt.figure()
+                    ax1 = df1.plot(ax=axes[k,i])
+                    ax1.set_xticklabels(range(1, 6), rotation='horizontal')
+                    ax1.set_xticks(range(0,5))
+                    ax1.set_xlabel("Epoch")
+                    ax1.set_ylabel("Number of words")
+                    ax1.legend(loc='best')
+            #fig.suptitle(' Word length, correctness ', fontsize=12)
+            #plt.figure(figsize=(16, 8))
+
+            plt.savefig(base_dir_dest+au+dr+"length.png")
+
+            plt.show()
+
+if do==70:
+    config = Config("char_map_15.csv", 6)
+    dataset = AHTRDatasetOther(
+        "dirs.pkl",
+        config,
+        None,
+        5125,
+    )
+    print(len(dataset))
+    l=dataset[0][0]
+    k=torch.from_numpy(l)
+
+    plt.imshow(k.permute(1, 2, 0))
     plt.show()
+
+
+
+
 
 

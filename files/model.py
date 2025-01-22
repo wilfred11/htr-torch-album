@@ -323,7 +323,7 @@ class CRNN(nn.Module):
         #out= self.dropout(out)
         #print('gru_h.shp:',gru_h.shape)
         self.gru_h = gru_h.detach()
-        print("out.shape: ", str(out.shape))
+        #print("out.shape: ", str(out.shape))
         # print("test: ", F.softmax(self.fc(out[0])))
         """print(
             "stack shape :",
@@ -333,7 +333,7 @@ class CRNN(nn.Module):
         out = torch.stack(
             [F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])]
         )
-        print("out.shape stacked: ", str(out.shape))
+        #print("out.shape stacked: ", str(out.shape))
         # print('final out.shp:', out.shape)
         return out
 

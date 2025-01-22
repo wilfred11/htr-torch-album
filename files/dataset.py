@@ -1,5 +1,6 @@
 import csv
 import os
+import pickle
 import random
 import sys
 
@@ -13,7 +14,7 @@ from torch.utils.data import Dataset, Subset
 from torchvision.io import read_image
 from torchvision.transforms import v2
 import torchvision.transforms.functional as F
-from files.functions import htr_ds_dir, generated_data_dir
+from files.functions import htr_ds_dir, generated_data_dir, external_data_dir
 from sklearn.model_selection import KFold
 import albumentations as A
 import torch
@@ -171,6 +172,90 @@ class HTRDataset(Dataset):
         return self.images[idx], self.labels[idx]
 
 
+
+class AHTRDatasetOther(Dataset):
+    def __init__(
+        self,
+        file_name,
+        config,
+        image_transform,
+        num_of_rows,
+    ):
+        self.labels = torch.IntTensor()
+        self.img_names = []
+        self.label_lengths = []
+        list_of_images = []
+        counter = 0
+        with open(external_data_dir()+'/handwriting-generation/' + file_name,'rb') as f:
+            dirs = pickle.load(f)
+            text_to_int = TextToInt(config.char_to_int_map)
+            fill_array = FillArray(
+                length=config.text_label_max_length, empty_label=config.empty_label
+            )
+            #print(dirs)
+            for d in dirs:
+                d_split = d.split("/")
+                length = len(d_split)
+                if length==6:
+                    #print("5")
+                    if d_split[2]== '0':
+                        if d_split[3] in config.char_set:
+
+                            #print(d)
+                            #if len(row[1]) > config.text_label_max_length:
+                            #    continue
+                            #if not all_chars_in_set(row[1], config.char_set):
+                            #    continue
+                            #print(os.path.basename(d))
+                            c_dir = external_data_dir()+'handwriting-generation/'+d
+                            for f in os.listdir(c_dir):
+                                lbl=Path(f).stem
+                                #print(lbl)
+                                #if len(lbl)>6:
+                                #    print(d)
+                                lbl_tensor = torch.IntTensor(fill_array(text_to_int(lbl)))
+
+
+                                img = read_image(c_dir + f,'RGB')
+                                img = torchvision.transforms.functional.invert(img)
+                                t = ResizeWithPad(w=156, h=44)
+                                img = t(img)
+                                if img is None or lbl_tensor is None:
+                                    continue
+
+                                list_of_images.append(img)
+                                self.img_names.append(f)
+                                self.labels = torch.cat((self.labels, lbl_tensor), 0)
+                                self.label_lengths.append(len(lbl))
+
+                                counter = counter + 1
+                                #print("counter: ", str(counter))
+                                #print("nor:", num_of_rows)
+                                if counter==num_of_rows:
+                                    print("break")
+                                    break
+
+                if counter == num_of_rows:
+                    print("break")
+                    break
+
+            if counter == num_of_rows:
+                self.labels = self.labels.reshape(
+                    [num_of_rows, config.text_label_max_length]
+                )
+                print(len(self.labels))
+                #break
+        self.np_images = np.array(list_of_images)
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        return self.np_images[idx], self.labels[idx], self.img_names[idx]
+
+    def get_label_length_counts(self):
+        return Counter(self.label_lengths)
+
 class AHTRDataset(Dataset):
     def __init__(
         self,
@@ -252,6 +337,7 @@ class TransformedDatasetEpochIterator:
         test_transform=A.Compose,
         train_transform=A.Compose,
         seed=0,
+        train_val_split=[0.8, 0.2]
     ):
         self.base = base_dataset
         self.train_transform = train_transform
@@ -262,7 +348,7 @@ class TransformedDatasetEpochIterator:
         self.random_order = random.sample(
             range(0, len(base_dataset)), len(base_dataset)
         )
-        self.train_val_split = [0.8, 0.2]
+        self.train_val_split = train_val_split
         self.length = len(base_dataset)
 
     def get_random_order(self):

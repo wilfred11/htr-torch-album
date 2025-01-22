@@ -80,6 +80,9 @@ def int_tensor_to_string(int_to_char_map, int_tensor):
 
 
 def test(loader, crnn, optimizer, criterion, config):
+    if len(loader)==0:
+        return
+
     int_to_string = IntToString(config.int_to_char_map)
     list_of_words = list()
     list_of_hypotheses = list()
