@@ -36,7 +36,6 @@ def train(trained_on_words, train_loader, crnn, optimizer, criterion, config):
 
         _, max_index = torch.max(y_pred, dim=2)
         counter = counter + 1
-        # print('train counter:', counter)
         for i in range(batch_size):
             crnn.eval()
             raw_prediction = list(max_index[:, i].numpy())
@@ -45,13 +44,11 @@ def train(trained_on_words, train_loader, crnn, optimizer, criterion, config):
             )
             prediction_as_string = int_to_string(prediction)
 
-            # print('prediction:', prediction)
             sz = len(prediction)
             for x in range(config.text_label_max_length - sz):
                 prediction = torch.cat(
                     (prediction, torch.IntTensor([config.empty_label])), 0
                 )
-                # print(prediction)
 
             if len(prediction) == len(y_train[i]) and torch.all(
                 prediction.eq(y_train[i])
@@ -59,7 +56,6 @@ def train(trained_on_words, train_loader, crnn, optimizer, criterion, config):
                 correct += 1
 
             y_train__as_string = int_to_string(y_train[i])
-            # print(y_train__as_string)
             trained_on_words.append(y_train__as_string)
 
             total += 1
@@ -68,7 +64,6 @@ def train(trained_on_words, train_loader, crnn, optimizer, criterion, config):
 
     ratio = correct / total
     print("TRAIN correct: ", correct, "/", total, " P:", ratio)
-
     return total_loss / num_batches, trained_on_words
 
 
@@ -98,13 +93,8 @@ def test(loader, crnn, optimizer, criterion, config):
         crnn.reset_hidden(batch_size)
 
         x_test = x_test.view(x_test.shape[0], 1, x_test.shape[2], x_test.shape[3])
-
         y_pred = crnn(x_test)
-
-        #print("y_pred: ", y_pred)
-        #print("y_pred shape : ", y_pred.shape)
         y_pred = y_pred.permute(1, 0, 2)
-        # print(y_pred)
 
         input_lengths = torch.IntTensor(batch_size).fill_(crnn.postconv_width)
         target_lengths = torch.IntTensor([len(t) for t in y_test])
@@ -114,13 +104,6 @@ def test(loader, crnn, optimizer, criterion, config):
         total_loss += loss.detach().numpy()
 
         _, max_index = torch.max(y_pred, dim=2)
-
-        #print("max_index:", max_index)
-        #print("max_index len:", len(max_index))
-        #bs = BeamSearch()
-        #values, indexes = bs(y_pred)
-
-        #print()
 
         for i in range(batch_size):
             raw_prediction = list(max_index[:, i].numpy())
@@ -133,8 +116,6 @@ def test(loader, crnn, optimizer, criterion, config):
             list_of_hypotheses.append(prediction_as_string)
             list_of_words.append(y_test_as_string)
 
-            # print(prediction_as_string)
-            # print(y_test_as_string)
             if prediction_as_string == y_test_as_string:
                 list_of_lengths_and_correctness[(len(y_test_as_string), "correct")] = (
                     list_of_lengths_and_correctness[(len(y_test_as_string), "correct")]
@@ -180,7 +161,5 @@ def test(loader, crnn, optimizer, criterion, config):
     print("wer:", wer)
     print("cer:", cer)
     lolc = dict(sorted(list_of_lengths_and_correctness.items()))
-    # print("length and correctness: ", lolc)
     print("TEST correct: ", correct, "/", total, " P:", ratio)
-
     return total_loss / num_batches, wer, cer, lolc, list_of_words, list_of_hypotheses

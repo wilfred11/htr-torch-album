@@ -22,16 +22,12 @@ import torchinfo
 from files.config import Config
 from files.data import (
     read_words_generate_csv,
-    read_bbox_csv_show_image,
-    get_dataloaders,
     dataloader_show,
-    read_maps,
     get_replay_dataset,
 )
 from files.dataset import (
     CustomObjectDetectionDataset,
     AHTRDataset,
-    KFoldTransformedDatasetIterator,
     TransformedDatasetEpochIterator, AHTRDatasetOther,
 )
 from files.transform import ResizeWithPad, AResizeWithPad, train_transform
@@ -116,8 +112,7 @@ if do == 1:
             if os.path.isdir(tf):
                 shutil.rmtree(tf)
             os.mkdir(tf)
-        # augs = [0, 1]
-        #augs = [0, 1]
+
         advs = [0]
         pretrain = 1
         stop_pretrain = 0
@@ -140,10 +135,6 @@ if do == 1:
             15040,
         )
 
-
-
-        #dataset_ = torch.utils.data.ConcatDataset([dataset, dataset1])
-
         for model in models:
             for adv in advs:
                 for aug in augs:
@@ -161,7 +152,6 @@ if do == 1:
                         if aug == 1:
                             train_image_transform = train_transform()
 
-                            #A.save(train_image_transform, "/scores/transform.json")
                         if aug == 0:
                             train_image_transform = A.Compose([])
 
@@ -226,17 +216,11 @@ if do == 1:
                                             break
                                 print("end pretraining")
                                 print("***************************")
-                                #pretrain=0
-                                #torch.save(crnn.state_dict(), prefix + "pretrained_reader")
                             print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
                             print(
                                 "context: " + model + " adv: " + str(adv) + " aug: " + str(aug) + " drop: " + str(drop))
 
-                            # MAX_EPOCHS = 2500
-
-                            # dataset
                             print("length ds: ", str(len(dataset)))
-                            # dataloader_show(trl, number_of_images=2, int_to_char_map=int_to_char_map)
 
                             list_training_loss = []
                             list_testing_loss = []
@@ -244,7 +228,6 @@ if do == 1:
                             list_testing_cer = []
                             list_length_correct = []
                             trained_on_words = []
-
 
                             for epoch in range(config.num_epoch):
                                 print("epoch "+str(epoch))
@@ -257,7 +240,6 @@ if do == 1:
                                     seed=random_seed,
                                 )
                                 train_data, test_data = data_handler.get_splits()
-
 
                                 trl = torch.utils.data.DataLoader(
                                     train_data, batch_size=4, shuffle=False
@@ -384,7 +366,6 @@ if do == 111:
 
 if do == 2:
     print("visualize featuremap")
-    # char_to_int_map, int_to_char_map, char_set = read_maps()
     config = Config("char_map_short.csv", 6)
 
     dataset = AHTRDataset(
@@ -473,37 +454,6 @@ if do == 62:
         plt.savefig(tfs[0] + key1 + "/" + "compare models.png")
         plt.show()
 
-if do==63:
-    dir="scores/base/aug/"
-
-    with open(dir+"gru_list_testing_length_correct.pkl", "rb") as f3:
-        list_ = pickle.load(f3)
-    lengths= list(range(1,6))
-    vals=["correct","incorrect"]
-
-    for li in list_:
-        print(li)
-        for l in lengths:
-            for v in vals:
-                if (l,v) not in li:
-                    li[(l,v)]= 0
-
-        li=dict(sorted(li.items()))
-        print(li)
-
-    for li in list_:
-    #for l in li:
-        epochs = range(1, len(list_) + 1)
-        plt.plot(epochs, li, label="")
-    plt.xticks(range(1, len(sc_item) + 1))
-    plt.title(key1.replace("_"," "))
-    plt.xlabel("hs")
-    plt.ylabel("")
-    plt.legend()
-    plt.savefig("compare models.png")
-    plt.show()
-
-    #print(list_)
 
 if do==64:
     base_dir = "scores/base/"

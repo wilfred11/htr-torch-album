@@ -9,7 +9,6 @@ from torchvision.utils import draw_bounding_boxes
 
 
 from files.dataset import (
-    HTRDataset,
     AHTRDataset,
 )
 from files.replay_dataset import TransformedDatasetReplay
@@ -63,34 +62,6 @@ def read_words_generate_csv():
             file.flush()
     file.close()
     print("file created")
-
-
-def get_dataloaders(
-    image_transform,
-    char_to_int_map,
-    int_to_char_map,
-    num_of_rows,
-    text_label_max_length,
-    char_set,
-):
-    print("loading dataset")
-    seq_dataset = HTRDataset(
-        "file_names-labels.csv",
-        text_label_max_length,
-        char_to_int_map,
-        int_to_char_map,
-        char_set,
-        image_transform,
-        num_of_rows,
-    )
-    train_set, test_set = torch.utils.data.random_split(
-        seq_dataset, [int(len(seq_dataset) * 0.8), int(len(seq_dataset) * 0.2)]
-    )
-
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=True)
-
-    return train_loader, test_loader
 
 
 def get_replay_dataset(
@@ -162,63 +133,6 @@ def read_maps():
     return char_to_int_map, int_to_char_map, char_set
 
 
-def read_bbox_csv_show_image():
-    with open(generated_data_dir() + "form_file_names-bboxes.csv", newline="") as file:
-        reader = csv.reader(file)
-        next(reader)
-        current_image = ""
-        last_image = ""
-        t_bbox = torch.IntTensor()
-        for row in reader:
-            current_image = row[0]
-            print("size t_bbox", len(t_bbox))
-            print("cur_im", current_image)
-            print("last_im", last_image)
-            if (not current_image == last_image or last_image == "") and not len(
-                t_bbox
-            ) == 0:
-                print("image shown")
-                image = read_image(iam_dir() + last_image)
-                current_image = ""
-                last_image = row[0]
-                img = draw_bounding_boxes(image, t_bbox, width=10, colors=(255, 0, 0))
-                img = torchvision.transforms.ToPILImage()(img)
-                img.show()
-                os.system("pause")
-                t_bbox = torch.IntTensor()
-
-            print(row)
-            bbox = [int(row[1]), int(row[2]), int(row[3]), int(row[4])]
-            bbox = torch.tensor(bbox, dtype=torch.int)
-            bbox = bbox.unsqueeze(0)
-            bbox = torchvision.ops.box_convert(bbox, in_fmt="xywh", out_fmt="xyxy")
-
-            t_bbox = torch.cat((t_bbox, bbox), 0)
-            bbox = torch.Tensor()
-
-            last_image = row[0]
 
 
-def read_bbox_csv_show_image():
-    with open(htr_ds_dir() + "train/" + "_annotations.csv", newline="") as file:
-        reader = csv.reader(file)
-        next(reader)
-        last_image = ""
-        t_bbox = torch.IntTensor()
-        for row in reader:
-            current_image = row[0]
-            if (not current_image == last_image or last_image == "") and not len(
-                t_bbox
-            ) == 0:
-                image = read_image(htr_ds_dir() + "train/" + last_image)
-                img = draw_bounding_boxes(image, t_bbox, width=5, colors=(255, 0, 0))
-                img = torchvision.transforms.ToPILImage()(img)
-                img.show()
-                os.system("pause")
-                t_bbox = torch.IntTensor()
 
-            bbox = [int(row[4]), int(row[5]), int(row[6]), int(row[7])]
-            bbox = torch.tensor(bbox, dtype=torch.int)
-            bbox = bbox.unsqueeze(0)
-            t_bbox = torch.cat((t_bbox, bbox), 0)
-            last_image = row[0]
