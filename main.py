@@ -6,27 +6,20 @@ from collections import Counter
 import pandas as pd
 
 import numpy as np
-import torch.nn as nn
 import pickle
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
 from torch import nn
-
-import pywhatkit as pw
-
-import torch.utils.data as data_utils
 import albumentations as A
 import torchinfo
 
 from files.config import Config
 from files.data import (
     read_words_generate_csv,
-    dataloader_show,
     get_replay_dataset,
 )
 from files.dataset import (
-    CustomObjectDetectionDataset,
     AHTRDataset,
     TransformedDatasetEpochIterator, AHTRDatasetOther,
 )
@@ -38,34 +31,24 @@ from files.model import (
     visualize_featuremap,
     CRNN_lstm,
     CRNN_rnn,
-    simple_model,
     CRNN_adv,
-    advanced_model,
     simple_CNN,
     advanced_CNN,
     Attention,
 )
 from files.test_train import train, test
 from files.functions import (
-    generated_data_dir,
-    htr_ds_dir,
     base_no_aug_score_dir,
     base_aug_score_dir,
-    aug_graphs,
-    no_aug_graphs,
     adv_no_aug_score_dir,
     adv_aug_score_dir,
 )
 from wakepy import keep
 
-# Todo confusion matrix
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
 do = 1
-# aug = 0
-# aug = 1
 
 text_label_max_length = 8
 model = 2
@@ -74,12 +57,9 @@ random_seed = 1
 random.seed(random_seed)
 np.random.seed(1)
 
-# models = ["gru"]
 models = ["gru"]
 dropout = [0,.5]
 augs = [0, 1]
-
-
 
 if do == 110:
     print("saving images and transforms")
@@ -116,11 +96,9 @@ if do == 1:
         advs = [0]
         pretrain = 1
         stop_pretrain = 0
-
         read_words_generate_csv()
 
         config = Config("char_map_15.csv", 6)
-
         print("num classes: ", config.num_classes)
         print("blank_label: ", config.blank_label)
         print("empty_label: ", config.empty_label)
@@ -144,7 +122,7 @@ if do == 1:
                                 "dirs.pkl",
                                 config,
                                 None,
-                                5135,
+                                725,
                             )
 
 
@@ -185,7 +163,7 @@ if do == 1:
                             if pretrain==1:
                                 print("***************************")
                                 print("pretraining")
-                                for it in range(5):
+                                for it in range(50):
                                     print("iteration "+str(it))
                                     for epoch in range(config.num_epoch):
                                         print("epoch "+ str(epoch))
@@ -432,7 +410,6 @@ if do == 62:
                 else:
                     dir = base_aug_score_dir()
 
-
                 with open(dir +dr+ prefix+"_" + "list_"+sc +".pkl", "rb") as f3:
                         list_ = pickle.load(f3)
 
@@ -502,7 +479,6 @@ if do==64:
             list_dict = []
 
             for li in list_:
-                #print(li)
                 for l in lengths:
                     for v in vals:
                         if (l, v) not in li:
@@ -522,15 +498,12 @@ if do==64:
                     x1=i*2
                     x2=i*2+2
                     df1 = df.iloc[:, kl[k][i][0]:kl[k][i][1]]
-                    #plt.figure()
                     ax1 = df1.plot(ax=axes[k,i])
                     ax1.set_xticklabels(range(1, 6), rotation='horizontal')
                     ax1.set_xticks(range(0,5))
                     ax1.set_xlabel("Epoch")
                     ax1.set_ylabel("Number of words")
                     ax1.legend(loc='best')
-            #fig.suptitle(' Word length, correctness ', fontsize=12)
-            #plt.figure(figsize=(16, 8))
 
             plt.savefig(base_dir_dest+au+dr+"length.png")
 
@@ -538,18 +511,24 @@ if do==64:
 
 if do==70:
     config = Config("char_map_15.csv", 6)
+    train_image_transform = train_transform()
     dataset = AHTRDatasetOther(
         "dirs.pkl",
         config,
-        None,
-        5125,
+        train_image_transform,
+        735,
     )
     print(len(dataset))
-    l=dataset[0][0]
-    k=torch.from_numpy(l)
-
-    plt.imshow(k.permute(1, 2, 0))
-    plt.show()
+    random_sampler = torch.utils.data.RandomSampler(dataset, num_samples=20)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, sampler=random_sampler)
+    #l=dataset[0][0]
+    dataiter = iter(dataloader)
+    for batch in dataiter:
+        print(batch[0].size())
+        plt.imshow(batch[0].squeeze().permute(1, 2, 0))
+        #k=torch.from_numpy(batch[0])
+        #plt.imshow(k.permute(1, 2, 0))
+        plt.show()
 
 
 

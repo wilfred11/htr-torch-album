@@ -9,7 +9,6 @@ import torchvision
 from matplotlib import pyplot as plt
 from torch import tensor
 from collections import Counter
-from torch.nn import functional as F1
 from torch.utils.data import Dataset, Subset
 from torchvision.io import read_image
 from torchvision.transforms import v2
@@ -24,7 +23,7 @@ from files.transform import (
     ResizeWithPad,
 )
 from pathlib import Path
-
+import torch.nn.functional as F1
 
 def pad_image_to_nearest_multiple(image, multiple=256):
     channels, height, width = image.shape
@@ -143,43 +142,30 @@ class AHTRDatasetOther(Dataset):
                 length=config.text_label_max_length, empty_label=config.empty_label
             )
             #print(dirs)
+            dirs = list(set(dirs))
+            dirs.sort()
             for d in dirs:
                 d_split = d.split("/")
                 length = len(d_split)
                 if length==6:
-                    #print("5")
+                    #print(d)
+                    print(d_split[2])
                     if d_split[2]== '0':
+                        print(d_split[3])
                         if d_split[3] in config.char_set:
-
-                            #print(d)
-                            #if len(row[1]) > config.text_label_max_length:
-                            #    continue
-                            #if not all_chars_in_set(row[1], config.char_set):
-                            #    continue
-                            #print(os.path.basename(d))
                             c_dir = external_data_dir()+'handwriting-generation/'+d
+                            print(c_dir)
+                            print(os.listdir(c_dir))
                             for f in os.listdir(c_dir):
                                 lbl=Path(f).stem
-                                #print(lbl)
-                                #if len(lbl)>6:
-                                #    print(d)
                                 lbl_tensor = torch.IntTensor(fill_array(text_to_int(lbl)))
 
-
                                 img = read_image(c_dir + f,'RGB')
-                                img = torchvision.transforms.functional.autocontrast(img)
-                                #img = torchvision.transforms.functional.adjust_contrast(img, contrast_factor=10)
-                                #img = torchvision.transforms.functional.adjust_brightness(img, 10)
+                                img = torchvision.transforms.functional.adjust_contrast(img, contrast_factor=9000000000)
                                 img = torchvision.transforms.functional.invert(img)
-                                #img = torchvision.transforms.functional.adjust_saturation(img, saturation_factor=10)
-                                #img = torchvision.transforms.functional.adjust_contrast(img, contrast_factor=10)
-                                #img = torchvision.transforms.functional.adjust_gamma(img, 10)
-                                #img = torchvision.transforms.functional.adjust_brightness(img, 10)
-                                #img = torchvision.transforms.functional.adjust_sharpness(img, 10)
-
-                                #img = torchvision.transforms.functional.adjust_hue(img, hue_factor=0.5)
                                 t = ResizeWithPad(w=156, h=44)
                                 img = t(img)
+
                                 if img is None or lbl_tensor is None:
                                     continue
 
@@ -189,8 +175,6 @@ class AHTRDatasetOther(Dataset):
                                 self.label_lengths.append(len(lbl))
 
                                 counter = counter + 1
-                                #print("counter: ", str(counter))
-                                #print("nor:", num_of_rows)
                                 if counter==num_of_rows:
                                     print("break")
                                     break
@@ -198,13 +182,14 @@ class AHTRDatasetOther(Dataset):
                 if counter == num_of_rows:
                     print("break")
                     break
-
+            print(counter)
             if counter == num_of_rows:
                 self.labels = self.labels.reshape(
                     [num_of_rows, config.text_label_max_length]
                 )
                 print(len(self.labels))
                 #break
+        print("loi:"+str(len(list_of_images)))
         self.np_images = np.array(list_of_images)
 
     def __len__(self):
@@ -252,6 +237,8 @@ class AHTRDataset(Dataset):
                     t = ResizeWithPad(w=156, h=44)
                     img = t(img)
                     #print(img.shape)
+
+
 
                     if img is None or lbl_tensor is None:
                         continue
