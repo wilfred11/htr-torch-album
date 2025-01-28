@@ -149,13 +149,13 @@ class AHTRDatasetOther(Dataset):
                 length = len(d_split)
                 if length==6:
                     #print(d)
-                    print(d_split[2])
+                    #print(d_split[2])
                     if d_split[2]== '0':
-                        print(d_split[3])
+                        #print(d_split[3])
                         if d_split[3] in config.char_set:
                             c_dir = external_data_dir()+'handwriting-generation/'+d
-                            print(c_dir)
-                            print(os.listdir(c_dir))
+                            #print(c_dir)
+                            #print(os.listdir(c_dir))
                             for f in os.listdir(c_dir):
                                 lbl=Path(f).stem
                                 lbl_tensor = torch.IntTensor(fill_array(text_to_int(lbl)))
