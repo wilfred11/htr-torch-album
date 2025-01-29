@@ -48,12 +48,13 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 1
+do = 110
 
 text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
 random_seed = 1
+random_seed_pre = random_seed
 random.seed(random_seed)
 np.random.seed(1)
 
@@ -173,7 +174,7 @@ if do == 1:
                                             num_epoch=config.num_epoch,
                                             train_transform=A.Compose([]),
                                             test_transform=A.Compose([]),
-                                            seed=random_seed,
+                                            seed=random_seed_pre,
                                             train_val_split=[1,0]
                                         )
                                         train_data, test_data = data_handler.get_splits()
@@ -192,6 +193,9 @@ if do == 1:
 
                                         if epoch == 4:
                                             break
+                                    random_seed_pre=random_seed_pre+1
+                                    random.seed(random_seed_pre)
+                                random_seed_pre=random_seed
                                 print("end pretraining")
                                 print("***************************")
                             print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -511,11 +515,10 @@ if do==64:
 
 if do==70:
     config = Config("char_map_15.csv", 6)
-    train_image_transform = train_transform()
     dataset = AHTRDatasetOther(
         "dirs.pkl",
         config,
-        train_image_transform,
+        A.Compose([]),
         735,
     )
     print(len(dataset))

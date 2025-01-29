@@ -303,8 +303,6 @@ class TransformedDatasetEpochIterator:
 
     def get_epoch_ids(self):
         items_per_epoch = self.length // self.num_epoch
-        num_items_gone = (self.current_epoch) * items_per_epoch
-
         epoch_idx_list = self.random_order[
             (self.current_epoch * items_per_epoch) : (
                 self.current_epoch * items_per_epoch
@@ -312,8 +310,6 @@ class TransformedDatasetEpochIterator:
             + items_per_epoch
         ]
         train_size = int(len(epoch_idx_list) * self.train_val_split[0])
-        # print("train size: ", str(train_size))
-        val_size = len(epoch_idx_list) - train_size
         epoch_idx_train_list = epoch_idx_list[0:train_size]
         epoch_idx_val_list = epoch_idx_list[train_size:]
         return epoch_idx_train_list, epoch_idx_val_list
@@ -326,8 +322,6 @@ class TransformedDatasetEpochIterator:
             tuple: A tuple containing the training and validation subsets.
         """
 
-        # fold_data = list(self.kf.split(self.base))
-        # train_indices, val_indices = fold_data[self.current_fold]
         train_ids, val_ids = self.get_epoch_ids()
         train_data = self._get_train_subset(train_ids)
         val_data = self._get_test_subset(val_ids)

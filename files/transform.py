@@ -156,27 +156,17 @@ class AResizeWithPad(ImageOnlyTransform):
 def replay_transform():
     return A.ReplayCompose(
         [
-            A.Rotate(limit=(-15,15), p=1.0, border_mode=cv2.BORDER_CONSTANT),
+            A.Rotate(limit=(-4.5,4.5), p=1.0, border_mode=cv2.BORDER_CONSTANT),
             A.OneOf(
                 [
-
-                    A.GaussNoise(p=1),
-                    A.Blur(p=1),
-                    A.RandomGamma(p=1),
-                    A.GridDistortion(p=1, distort_limit=(-0.3,0.3),normalized=True, interpolation=cv2.INTER_NEAREST),
-                    A.Morphological(p=1, scale=(4, 6), operation="dilation"),
-                    A.Morphological(p=1, scale=(4, 6), operation="erosion"),
-                    A.RandomBrightnessContrast(p=1),
-                    A.Affine(p=1),
+                    A.GaussNoise(p=1, var_limit=(233,255), per_channel=False),
+                    A.Blur(p=1, blur_limit=3),
+                    #A.GridDistortion(p=1, distort_limit=(-0.3,0.3),normalized=True, interpolation=cv2.INTER_NEAREST),
+                    A.Morphological(p=1, scale=(3, 4), operation="dilation"),
+                    A.Morphological(p=1, scale=(3, 4), operation="erosion"),
+                    A.PixelDropout(p=1, drop_value=133, dropout_prob=.04)
                 ],
-
                 p=1.0,
-            ),
-            A.OneOf(
-                [
-                    A.PixelDropout(p=1, drop_value=None),
-                ],
-                p=1.0
             )
         ]
     )
@@ -184,22 +174,17 @@ def replay_transform():
 def train_transform():
     return A.Compose(
         [
-            A.Rotate(limit=(-15, 15), p=0.25, border_mode=cv2.BORDER_CONSTANT),
+            A.Rotate(limit=(-4.5, 4.5), p=0.25, border_mode=cv2.BORDER_CONSTANT),
             A.OneOf(
             [
 
-                A.GaussNoise(p=1),
-                A.RandomGamma(p=1),
-                A.Morphological(p=1, scale=(4, 6), operation="dilation"),
-                A.Morphological(p=1, scale=(4, 6), operation="erosion"),
+                A.GaussNoise(p=1, var_limit=(233, 255), per_channel=False),
+                A.Blur(p=1, blur_limit=3),
+                A.Morphological(p=1, scale=(3, 4), operation="dilation"),
+                A.Morphological(p=1, scale=(3, 4), operation="erosion", ),
+                A.PixelDropout(p=1, drop_value=133, dropout_prob=.04)
             ],
             p=0.45,
-            ),
-            A.OneOf(
-                [
-                    A.PixelDropout(p=1, drop_value=None),
-                ],
-                p=0.25
             )
         ]
     )

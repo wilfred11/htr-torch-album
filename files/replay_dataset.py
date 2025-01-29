@@ -60,10 +60,10 @@ class TransformedDatasetReplay(Dataset):
                         f.write(str(one_of["operation"]) + "\n")
                     # f.write(one_of)
                     # print(one_of)"""
-            for one_of in x_t["replay"]["transforms"][2]["transforms"]:
+            """for one_of in x_t["replay"]["transforms"][2]["transforms"]:
                 if one_of["applied"]:
                     # print(one_of["__class_fullname__"])
-                    f.write(str(one_of["__class_fullname__"]) + "\n")
+                    f.write(str(one_of["__class_fullname__"]) + "\n")"""
             f.write("xxxxxxxxxxx\n")
         f.close()
 
