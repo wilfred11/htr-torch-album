@@ -48,7 +48,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 110
+do = 1
 
 text_label_max_length = 8
 model = 2
