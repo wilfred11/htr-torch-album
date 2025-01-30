@@ -184,12 +184,32 @@ def train_transform():
                 A.Morphological(p=1, scale=(3, 4), operation="erosion", ),
                 A.PixelDropout(p=1, drop_value=133, dropout_prob=.04)
             ],
-            p=0.45,
+            p=0.25,
             )
         ]
     )
 
+def pretrain_transform():
+    return A.Compose(
+        [
+                A.Morphological(p=1, scale=(2, 3), operation="dilation"),
+                A.RandomBrightnessContrast(brightness_limit=[1,1], contrast_limit = [1,1],brightness_by_max=False, p = 1.0),
+                #A.ColorJitter(brightness=0, contrast=(1, 5), saturation=0, hue=0)
+                A.Rotate(limit=(-4.5, 4.5), p=0.25, border_mode=cv2.BORDER_CONSTANT),
+                A.OneOf(
+                    [
 
+                        A.GaussNoise(p=1, var_limit=(233, 255), per_channel=False),
+                        A.Blur(p=1, blur_limit=3),
+                        A.Morphological(p=1, scale=(3, 4), operation="dilation"),
+                        A.Morphological(p=1, scale=(3, 4), operation="erosion", ),
+                        A.PixelDropout(p=1, drop_value=133, dropout_prob=.04)
+                    ],
+                    p=0.25,
+                )
+        ],
+        p=1,
+        )
 """A.OneOf(
                 [
 

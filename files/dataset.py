@@ -141,21 +141,15 @@ class AHTRDatasetOther(Dataset):
             fill_array = FillArray(
                 length=config.text_label_max_length, empty_label=config.empty_label
             )
-            #print(dirs)
             dirs = list(set(dirs))
             dirs.sort()
             for d in dirs:
                 d_split = d.split("/")
                 length = len(d_split)
                 if length==6:
-                    #print(d)
-                    #print(d_split[2])
                     if d_split[2]== '0':
-                        #print(d_split[3])
                         if d_split[3] in config.char_set:
                             c_dir = external_data_dir()+'handwriting-generation/'+d
-                            #print(c_dir)
-                            #print(os.listdir(c_dir))
                             for f in os.listdir(c_dir):
                                 lbl=Path(f).stem
                                 lbl_tensor = torch.IntTensor(fill_array(text_to_int(lbl)))
@@ -168,30 +162,31 @@ class AHTRDatasetOther(Dataset):
 
                                 if img is None or lbl_tensor is None:
                                     continue
-
-                                list_of_images.append(img)
+                                x_original_t = image_transform(image=img.numpy())
+                                #img = image_transform(img)
+                                list_of_images.append(x_original_t["image"])
+                                #list_of_images.append(img)
                                 self.img_names.append(f)
                                 self.labels = torch.cat((self.labels, lbl_tensor), 0)
                                 self.label_lengths.append(len(lbl))
 
                                 counter = counter + 1
                                 if counter==num_of_rows:
-                                    print("break")
+                                    #print("break")
                                     break
 
                 if counter == num_of_rows:
-                    print("break")
+                    #print("break")
                     break
             print(counter)
             if counter == num_of_rows:
                 self.labels = self.labels.reshape(
                     [num_of_rows, config.text_label_max_length]
                 )
-                print(len(self.labels))
+                #print(len(self.labels))
                 #break
         print("loi:"+str(len(list_of_images)))
         self.np_images = np.array(list_of_images)
-
     def __len__(self):
         return len(self.labels)
 
@@ -237,7 +232,7 @@ class AHTRDataset(Dataset):
                     t = ResizeWithPad(w=156, h=44)
                     img = t(img)
                     #print(img.shape)
-
+                    #x_ = x.transpose(1, 2, 0)
 
 
                     if img is None or lbl_tensor is None:

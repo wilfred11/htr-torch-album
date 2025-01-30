@@ -23,7 +23,7 @@ from files.dataset import (
     AHTRDataset,
     TransformedDatasetEpochIterator, AHTRDatasetOther,
 )
-from files.transform import ResizeWithPad, AResizeWithPad, train_transform
+from files.transform import ResizeWithPad, AResizeWithPad, train_transform, pretrain_transform
 import torch
 from files.model import (
     CRNN,
@@ -48,7 +48,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 64
+do = 1
 text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
@@ -58,7 +58,7 @@ random.seed(random_seed)
 np.random.seed(1)
 
 models = ["gru"]
-dropout = [0,.5]
+dropout = [0,.15]
 augs = [0, 1]
 
 if do == 110:
@@ -118,13 +118,13 @@ if do == 1:
                 for aug in augs:
                     for drop in dropout:
                         if pretrain == 1:
+                            pretrain_image_transform = pretrain_transform()
                             dataset1 = AHTRDatasetOther(
                                 "dirs.pkl",
                                 config,
-                                None,
+                                pretrain_image_transform,
                                 725,
                             )
-
 
                         test_image_transform = A.Compose([])
                         if aug == 1:
@@ -513,11 +513,12 @@ if do==64:
             plt.show()
 
 if do==70:
+    pre_t =pretrain_transform()
     config = Config("char_map_15.csv", 6)
     dataset = AHTRDatasetOther(
         "dirs.pkl",
         config,
-        A.Compose([]),
+        pre_t,
         735,
     )
     print(len(dataset))
