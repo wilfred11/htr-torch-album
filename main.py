@@ -48,8 +48,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 1
-
+do = 64
 text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
@@ -503,8 +502,8 @@ if do==64:
                     x2=i*2+2
                     df1 = df.iloc[:, kl[k][i][0]:kl[k][i][1]]
                     ax1 = df1.plot(ax=axes[k,i])
+                    ax1.set_xticks(range(0, 5))
                     ax1.set_xticklabels(range(1, 6), rotation='horizontal')
-                    ax1.set_xticks(range(0,5))
                     ax1.set_xlabel("Epoch")
                     ax1.set_ylabel("Number of words")
                     ax1.legend(loc='best')
