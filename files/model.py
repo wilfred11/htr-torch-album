@@ -7,124 +7,6 @@ from torch.autograd import Variable
 import torchlens as tl
 
 
-class simple_model(nn.Module):
-
-    def __init__(self):
-        super(simple_model, self).__init__()
-
-        self.num_classes = 18 + 1
-        self.image_H = 32
-
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(3, 3))
-        self.in1 = nn.InstanceNorm2d(32)
-
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=(3, 3))
-        self.in2 = nn.InstanceNorm2d(32)
-
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=(3, 3), stride=2)
-        self.in3 = nn.InstanceNorm2d(32)
-
-        self.conv4 = nn.Conv2d(32, 64, kernel_size=(3, 3))
-        self.in4 = nn.InstanceNorm2d(64)
-
-        self.conv5 = nn.Conv2d(64, 64, kernel_size=(3, 3))
-        self.in5 = nn.InstanceNorm2d(64)
-
-        self.conv6 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
-        self.in6 = nn.InstanceNorm2d(64)
-        # http://layer-calc.com/
-        # c= 64 h=10 w=43
-
-    def forward(self, x):
-        batch_size = x.shape[0]
-
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
-        # print('out.shp before perm:', out.shape)
-
-        # print('final out.shp:', out.shape)
-        return out
-
-
-class advanced_model(nn.Module):
-
-    def __init__(self):
-        super(advanced_model, self).__init__()
-
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=(3, 3))
-        self.in1 = nn.InstanceNorm2d(64)
-
-        self.conv2 = nn.Conv2d(64, 64, kernel_size=(3, 3))
-        self.in2 = nn.InstanceNorm2d(64)
-
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=2)
-        self.in3 = nn.InstanceNorm2d(64)
-
-        self.conv4 = nn.Conv2d(64, 128, kernel_size=(3, 3))
-        self.in4 = nn.InstanceNorm2d(128)
-
-        self.conv5 = nn.Conv2d(128, 128, kernel_size=(3, 3))
-        self.in5 = nn.InstanceNorm2d(128)
-
-        self.conv6 = nn.Conv2d(128, 128, kernel_size=(3, 3), stride=2)
-        self.in6 = nn.InstanceNorm2d(128)
-        # http://layer-calc.com/
-        # http://layer-calc.com/
-        # c= 64 h=10 w=43
-
-    def forward(self, x):
-        batch_size = x.shape[0]
-
-        out = self.conv1(x)
-        out = F.leaky_relu(out)
-        out = self.in1(out)
-
-        out = self.conv2(out)
-        out = F.leaky_relu(out)
-        out = self.in2(out)
-
-        out = self.conv3(out)
-        out = F.leaky_relu(out)
-        out = self.in3(out)
-
-        out = self.conv4(out)
-        out = F.leaky_relu(out)
-        out = self.in4(out)
-
-        out = self.conv5(out)
-        out = F.leaky_relu(out)
-        out = self.in5(out)
-
-        out = self.conv6(out)
-        out = F.leaky_relu(out)
-        out = self.in6(out)
-        # print('out.shp before perm:', out.shape)
-
-        # print('final out.shp:', out.shape)
-        return out
-
-
 class AdaptiveCNN(nn.Module):
     def __init__(self, *args):
         super().__init__()
@@ -231,7 +113,7 @@ class CRNN_adv(nn.Module):
 
         self.gru_input_size = self.postconv_height * 128
         # self.gru_hidden_size = 128
-        self.gru_hidden_size = 128
+        self.gru_hidden_size = 256
         # self.gru_num_layers = 2
         self.gru_num_layers = 2
         self.gru_h = None

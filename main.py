@@ -48,7 +48,7 @@ from wakepy import keep
 device = "cuda" if torch.cuda.is_available() else "cpu"
 image_transform = v2.Compose([ResizeWithPad(h=32, w=110), v2.Grayscale()])
 
-do = 1
+do = 64
 text_label_max_length = 8
 model = 2
 torch.manual_seed(1)
@@ -94,7 +94,7 @@ if do == 1:
             os.mkdir(tf)
 
         advs = [0]
-        pretrain = 1
+        pretrain = 0
         stop_pretrain = 0
         read_words_generate_csv()
 
