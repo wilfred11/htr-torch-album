@@ -58,7 +58,7 @@ random.seed(random_seed)
 np.random.seed(1)
 
 models = ["gru"]
-dropout = [0,.15]
+dropout = [0,.5]
 augs = [0, 1]
 
 if do == 110:
@@ -136,13 +136,13 @@ if do == 1:
                         with keep.running() as k:
                             print("htr training and testing")
 
-                            if model == "gru" and adv == 0:
+                            if model == "gru" and drop == 0:
                                 crnn = CRNN(config.num_classes, drop).to(device)
                             elif model == "lstm" and adv == 0:
                                 crnn = CRNN_lstm(config.num_classes).to(device)
                             elif model == "rnn" and adv == 0:
                                 crnn = CRNN_rnn(config.num_classes).to(device)
-                            elif model == "gru" and adv == 1:
+                            elif model == "gru" and drop == .5:
                                 crnn = CRNN_adv(config.num_classes).to(device)
 
                             prefix = model + "_"
@@ -163,7 +163,7 @@ if do == 1:
                             if pretrain==1:
                                 print("***************************")
                                 print("pretraining")
-                                for it in range(50):
+                                for it in range(35):
                                     print("iteration "+str(it))
                                     for epoch in range(config.num_epoch):
                                         print("epoch "+ str(epoch))

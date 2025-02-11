@@ -229,11 +229,11 @@ class CRNN_adv(nn.Module):
         self.postconv_height = 7
         self.postconv_width = 35
 
-        self.gru_input_size = self.postconv_height * 64
+        self.gru_input_size = self.postconv_height * 128
         # self.gru_hidden_size = 128
-        self.gru_hidden_size = 192
+        self.gru_hidden_size = 128
         # self.gru_num_layers = 2
-        self.gru_num_layers = 4
+        self.gru_num_layers = 2
         self.gru_h = None
         self.gru_cell = None
 
@@ -333,7 +333,7 @@ class CRNN(nn.Module):
         out = torch.stack(
             [F.log_softmax(self.fc(out[i]), 1) for i in range(out.shape[0])]
         )
-        #print("out.shape stacked: ", str(out.shape))
+        #print("out.shape : ", str(out.shape))
         # print('final out.shp:', out.shape)
         return out
 
