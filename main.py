@@ -56,9 +56,9 @@ random_seed = 1
 random_seed_pre = random_seed
 random.seed(random_seed)
 np.random.seed(1)
-
+pretrain = 0
 models = ["gru"]
-dropout = [0,.5]
+dropout = [0, .5]
 augs = [0, 1]
 
 if do == 110:
@@ -94,7 +94,7 @@ if do == 1:
             os.mkdir(tf)
 
         advs = [0]
-        pretrain = 0
+        #pretrain = 0
         stop_pretrain = 0
         read_words_generate_csv()
 
@@ -160,13 +160,13 @@ if do == 1:
                                 amsgrad=False,
                             )
 
-                            if pretrain==1:
+                            if pretrain == 1:
                                 print("***************************")
                                 print("pretraining")
-                                for it in range(35):
-                                    print("iteration "+str(it))
+                                for it in range(25):
+                                    print("iteration " + str(it))
                                     for epoch in range(config.num_epoch):
-                                        print("epoch "+ str(epoch))
+                                        print("epoch " + str(epoch))
                                         data_handler = TransformedDatasetEpochIterator(
                                             dataset1,
                                             current_epoch=epoch,
@@ -174,7 +174,7 @@ if do == 1:
                                             train_transform=A.Compose([]),
                                             test_transform=A.Compose([]),
                                             seed=random_seed_pre,
-                                            train_val_split=[1,0]
+                                            train_val_split=[1, 0]
                                         )
                                         train_data, test_data = data_handler.get_splits()
 
@@ -192,9 +192,9 @@ if do == 1:
 
                                         if epoch == 4:
                                             break
-                                    random_seed_pre=random_seed_pre+1
+                                    random_seed_pre = random_seed_pre + 1
                                     random.seed(random_seed_pre)
-                                random_seed_pre=random_seed
+                                random_seed_pre = random_seed
                                 print("end pretraining")
                                 print("***************************")
                             print("xxxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -211,7 +211,7 @@ if do == 1:
                             trained_on_words = []
 
                             for epoch in range(config.num_epoch):
-                                print("epoch "+str(epoch))
+                                print("epoch " + str(epoch))
                                 data_handler = TransformedDatasetEpochIterator(
                                     dataset,
                                     current_epoch=epoch,
@@ -246,15 +246,15 @@ if do == 1:
                                 list_testing_cer.append(cer)
                                 list_length_correct.append(length_correct)
 
-                                if drop!=0:
+                                if drop != 0:
                                     if aug == 0 and adv == 0:
-                                        dir = base_no_aug_score_dir()+"drop/"
+                                        dir = base_no_aug_score_dir() + "drop/"
                                     elif aug == 1 and adv == 0:
-                                        dir = base_aug_score_dir()+"drop/"
+                                        dir = base_aug_score_dir() + "drop/"
                                     elif aug == 0 and adv == 1:
-                                        dir = adv_no_aug_score_dir()+"drop/"
+                                        dir = adv_no_aug_score_dir() + "drop/"
                                     elif aug == 1 and adv == 1:
-                                        dir = adv_aug_score_dir()+"drop/"
+                                        dir = adv_aug_score_dir() + "drop/"
                                 else:
                                     if aug == 0 and adv == 0:
                                         dir = base_no_aug_score_dir()
@@ -267,13 +267,13 @@ if do == 1:
 
                                 columns = ["word", "hypothesis"]
                                 with open(
-                                    dir
-                                    + prefix
-                                    + "words_hypothesis_epoch_"
-                                    + str(epoch)
-                                    + ".csv",
-                                    "w",
-                                    newline="",
+                                        dir
+                                        + prefix
+                                        + "words_hypothesis_epoch_"
+                                        + str(epoch)
+                                        + ".csv",
+                                        "w",
+                                        newline="",
                                 ) as f:
                                     write = csv.writer(f)
                                     write.writerow(columns)
@@ -284,25 +284,25 @@ if do == 1:
                                 if epoch == 4:
                                     print("training loss", list_training_loss)
                                     with open(
-                                        dir + prefix + "list_training_loss.pkl", "wb"
+                                            dir + prefix + "list_training_loss.pkl", "wb"
                                     ) as f1:
                                         pickle.dump(list_training_loss, f1)
                                     print("testing loss", list_testing_loss)
                                     with open(
-                                        dir + prefix + "list_testing_loss.pkl", "wb"
+                                            dir + prefix + "list_testing_loss.pkl", "wb"
                                     ) as f2:
                                         pickle.dump(list_testing_loss, f2)
                                     with open(
-                                        dir + prefix + "list_testing_wer.pkl", "wb"
+                                            dir + prefix + "list_testing_wer.pkl", "wb"
                                     ) as f3:
                                         pickle.dump(list_testing_wer, f3)
                                     with open(
-                                        dir + prefix + "list_testing_cer.pkl", "wb"
+                                            dir + prefix + "list_testing_cer.pkl", "wb"
                                     ) as f4:
                                         pickle.dump(list_testing_cer, f4)
                                     with open(
-                                        dir + prefix + "list_testing_length_correct.pkl",
-                                        "wb",
+                                            dir + prefix + "list_testing_length_correct.pkl",
+                                            "wb",
                                     ) as f5:
                                         pickle.dump(list_length_correct, f5)
 
@@ -316,9 +316,9 @@ if do == 1:
                                     )
 
                                     with open(
-                                        dir + prefix + "trained_on_words_count.csv",
-                                        "w",
-                                        newline="",
+                                            dir + prefix + "trained_on_words_count.csv",
+                                            "w",
+                                            newline="",
                                     ) as f6:
                                         w = csv.writer(f6)
                                         w.writerows(trained_on_words_count.items())
@@ -343,7 +343,6 @@ if do == 111:
         attention,
         input_size=(35, 128),
     )
-
 
 if do == 2:
     print("visualize featuremap")
@@ -375,21 +374,19 @@ if do == 3:
     loader = DataLoader(dataset, shuffle=True, batch_size=2)
     visualize_model(loader, crnn)
 
-
-
 if do == 62:
-    tfs = ["scores/graph/"]
+
+    tfs = ["scores/graph/perf/"]
     scoring = ["testing_wer", "testing_cer", "testing_loss", "training_loss"]
-    all_dict=dict()
+    all_dict = dict()
     for tf in tfs:
         if os.path.isdir(tf):
             shutil.rmtree(tf)
         os.mkdir(tf)
-        for sc in scoring:
-            if os.path.isdir(tf + sc+"/"):
-                shutil.rmtree(tf+sc+"/")
-            os.mkdir(tf+sc+"/")
-
+        """for sc in scoring:
+            if os.path.isdir(tf + sc + "/"):
+                shutil.rmtree(tf + sc + "/")
+            os.mkdir(tf + sc + "/")"""
     prefix = ""
     if model == 2:
         prefix = "gru"
@@ -397,49 +394,76 @@ if do == 62:
         prefix = "lstm"
     elif model == 1:
         prefix = "rnn"
+    if pretrain == 1:
+        pre_ = "pre_"
+    else:
+        pre_ = "nopre_"
 
     dict_ = dict()
     for sc in scoring:
+        #print(sc)
+        if sc == "testing_wer":
+            with open(tfs[0] + pre_ + prefix + '_scores_performance.csv', 'w',newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([" "," ", "1", "2", "3", "4", "5"])
+
+            csvfile.close()
         for aug in augs:
             for drop in dropout:
-                dr=""
-                if drop==0:
-                    dr=""
+                dr = ""
+                if drop == 0:
+                    dr = ""
                 else:
-                    dr="drop/"
+                    dr = "drop/"
 
                 if aug == 0:
                     dir = base_no_aug_score_dir()
                 else:
                     dir = base_aug_score_dir()
 
-                with open(dir +dr+ prefix+"_" + "list_"+sc +".pkl", "rb") as f3:
-                        list_ = pickle.load(f3)
+                with open(dir + dr + prefix + "_" + "list_" + sc + ".pkl", "rb") as f3:
+                    list_ = pickle.load(f3)
 
-                dict_[prefix + "-"+ "dropout:"+ str(drop) +"-"+ "aug:"+ str(aug)] = list_
-                all_dict[sc]=dict_
-        dict_=dict()
+                dict_[prefix + "-" + "dropout:" + str(drop) + "-" + "aug:" + str(aug)] = list_
+                all_dict[sc] = dict_
+                #print(dict_)
+        if sc == "testing_wer":
+            with open(tfs[0]+pre_ + prefix + '_scores_performance.csv', 'a',newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                for i, (k, v) in enumerate(dict_.items()):
+                    c= v.copy()
+                    print(c)
+                    c1 = [(1-s)*100 for s in c]
+                    c1 = [round(s,2) for s in c1]
+                    c1.insert(0, k)
+                    if pretrain==0:
+                        c1.insert(0, "no pre-training")
+                    else:
+                        c1.insert(0, "pre-training")
+                    writer.writerow(c1)
+            csvfile.close()
+
+        dict_ = dict()
     for key1 in all_dict:
         d = all_dict[key1]
         print(len(d))
         for key in d:
-            sc_item= d[key]
+            sc_item = d[key]
             epochs = range(1, len(sc_item) + 1)
             plt.plot(epochs, sc_item, label=key)
         plt.xticks(range(1, len(sc_item) + 1))
-        plt.title(key1.replace("_"," "))
+        plt.title(key1.replace("_", " "))
         plt.xlabel("Epochs")
-        plt.ylabel(key1.split("_",1)[1])
+        plt.ylabel(key1.split("_", 1)[1])
         plt.legend()
-        plt.savefig(tfs[0] + key1 + "/" + "compare models.png")
+        plt.savefig(tfs[0] +  "/" + key1 + ".png")
         plt.show()
 
-
-if do==64:
+if do == 64:
     base_dir = "scores/base/"
-    base_dir_dest = "scores/graph/"
+    base_dir_dest = "scores/graph/length/"
     dir = "scores/base/aug/drop/"
-    dirs =[]
+    dirs = []
     dirs.append(base_dir_dest)
     for aug in augs:
         for drop in dropout:
@@ -447,33 +471,33 @@ if do==64:
                 au = "no_aug/"
             else:
                 au = "aug/"
-            dir_ =base_dir_dest+au
-            dirs.append(dir_)
+
             if drop == 0:
                 dr = ""
             else:
                 dr = "drop/"
-
-            dir_ = dir_ + dr
-            dirs.append(dir_)
 
     for d in dirs:
         if os.path.isdir(d):
             shutil.rmtree(d)
         os.mkdir(d)
-
+    naam="length_corr_"
     for aug in augs:
         for drop in dropout:
             if drop == 0:
                 dr = ""
+                naam+="nd_"
             else:
                 dr = "drop/"
+                naam += "d_"
 
             if aug == 0:
                 au = "no_aug/"
+                naam += "_na"
             else:
                 au = "aug/"
-            dir= base_dir+ au+dr
+                naam += "_a"
+            dir = base_dir + au + dr
             with open(dir + "gru_list_testing_length_correct.pkl", "rb") as f3:
                 list_ = pickle.load(f3)
             lengths = list(range(1, 7))
@@ -493,27 +517,27 @@ if do==64:
             fig, axes = plt.subplots(nrows=2, ncols=3)
             fig.tight_layout()
             fig.subplots_adjust(bottom=0.114, left=0.088)
-            kl= [[(0, 2), (2,4), (4,6)],[(6,8), (8,10), (10,12)]]
+            kl = [[(0, 2), (2, 4), (4, 6)], [(6, 8), (8, 10), (10, 12)]]
             for k in range(0, 2):
-                for i in range(0,3):
+                for i in range(0, 3):
                     df = pd.DataFrame(list_dict)
                     print(df.head(5))
-                    x1=i*2
-                    x2=i*2+2
+                    x1 = i * 2
+                    x2 = i * 2 + 2
                     df1 = df.iloc[:, kl[k][i][0]:kl[k][i][1]]
-                    ax1 = df1.plot(ax=axes[k,i])
+                    ax1 = df1.plot(ax=axes[k, i])
                     ax1.set_xticks(range(0, 5))
                     ax1.set_xticklabels(range(1, 6), rotation='horizontal')
                     ax1.set_xlabel("Epoch")
                     ax1.set_ylabel("Number of words")
                     ax1.legend(loc='best')
 
-            plt.savefig(base_dir_dest+au+dr+"length.png")
-
+            plt.savefig(base_dir_dest + naam + ".png")
+            naam="length_corr_"
             plt.show()
 
-if do==70:
-    pre_t =pretrain_transform()
+if do == 70:
+    pre_t = pretrain_transform()
     config = Config("char_map_15.csv", 6)
     dataset = AHTRDatasetOther(
         "dirs.pkl",
@@ -532,9 +556,3 @@ if do==70:
         #k=torch.from_numpy(batch[0])
         #plt.imshow(k.permute(1, 2, 0))
         plt.show()
-
-
-
-
-
-
